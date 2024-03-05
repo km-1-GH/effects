@@ -13,8 +13,9 @@ void main()
     /**
     * Position
     */
+    float expandVelocity = 1.0 - pow(1.0 - uTime, 2.0);
     vec3 newPosition = position;
-    newPosition += position * uTime * 0.8;
+    newPosition += normalize(position) * expandVelocity * 0.12;
 
     vec4 modelPosition = modelMatrix * vec4(newPosition, 1.0);
     vec4 viewPosition = viewMatrix * modelPosition;

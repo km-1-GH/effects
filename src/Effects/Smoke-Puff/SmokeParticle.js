@@ -11,7 +11,6 @@ import noise from '/perlin.png'
  * @param {THREE.Vector3} [param.position] - default Position
  * @param {number} [param.size] - Particle Size Scale
  * @param {number} [param.scale] - Mesh Destination Scale
- * @param {number} [param.speed] - Animation Speed
  * @param {String} [param.color1] - Main Color
  * @param {String} [param.color2] - Rim Color
  * @param {THREE.Texture} [param.noise] - Noise Texture
@@ -27,7 +26,6 @@ export default class SmokeParticle {
         this.destScale = param.scale || 1
         const color1 = param.color1 || 0xf7feff
         const color2 = param.color2 || 0xf8f8f8
-        this.speed = param.speed || 0.5
         this.noiseTex = param.noise || new THREE.TextureLoader().load(noise)
         this.resolution = param.resolution || new THREE.Vector2(1000, 750)
         
@@ -35,7 +33,7 @@ export default class SmokeParticle {
             new THREE.Color(color1),
             new THREE.Color(color2),
         ]
-        this.PARTICLE_SIZE = 0.86 * param.size
+        this.PARTICLE_SIZE = 1 * param.size
 
         this.anchor
         this.create(this.scene)
@@ -52,9 +50,9 @@ export default class SmokeParticle {
         const SMALL_R = 0.05
         const MEDIUM_R = 0.15
         const LARGE_R = 0.18
-        const SMALL_COUNT = 14
-        const MEDIUM_COUNT = 20
-        const LARGE_COUNT = 26
+        const SMALL_COUNT = 20
+        const MEDIUM_COUNT = 24
+        const LARGE_COUNT = 32
 
         const paramArr = []
 
@@ -92,7 +90,7 @@ export default class SmokeParticle {
 
             // scale and delay
             scale[i] = Math.random() * 0.6 + 0.4 // 0.4 ~ 1.0
-            delay[i] = Math.random() * 0.3
+            delay[i] = Math.random() * 0.8
         }
 
         geometry.setAttribute('position', new THREE.BufferAttribute( positions, 3))
@@ -139,21 +137,19 @@ export default class SmokeParticle {
     activate(position=this.position, addScale=0) {
         this.anchor.position.set(position.x, position.y, position.z)
         this.anchor.rotation.z = Math.random() * Math.PI * 2
-        this.anchor.scale.setScalar(0)
-        this.anchor.userData.destScale = this.destScale + addScale
+        this.anchor.scale.setScalar(this.destScale + addScale)
+        this.anchor.material.uniforms.uMeshScale.value = this.destScale + addScale
 
         this.elapsed = 0
         this.anchor.userData.state = 'on'
         this.anchor.visible = true
     }
 
-    update(delta, speed=this.speed) {
+    update(delta) {
         if (this.anchor.userData.state !== 'on') return ////////////
 
-        this.elapsed += delta * speed
+        this.elapsed += delta * 0.5
         this.anchor.material.uniforms.uTime.value = this.elapsed
-        this.anchor.scale.setScalar(this.anchor.userData.destScale * Math.sqrt(Math.sqrt(Math.sqrt(Math.sqrt(this.elapsed)))))
-        this.anchor.material.uniforms.uMeshScale.value = this.anchor.scale.x
 
         if (this.elapsed >= 1) {
             this.elapsed = 0
@@ -164,16 +160,18 @@ export default class SmokeParticle {
     }
 
     setupGUI(pane) {
-        const SmokePuffFolder = pane.addFolder({title: 'Smoke Puff' })
+        const folder = pane.addFolder({ title: 'Smoke Puff', expanded: false})
 
-        SmokePuffFolder.addBinding(this, 'destScale', { min: 0, max: 10 })
+        folder.addButton({ title: 'Activate' }).on('click', () => { 
+            if (this.anchor.userData.state !== 'on') this.activate() 
+        })
 
-        SmokePuffFolder.addBinding(this, 'speed', { min: 0, max: 2 })
+        folder.addBinding(this, 'destScale', { min: 0, max: 10 })
 
-        SmokePuffFolder.addBinding(this, 'size', { min: 0, max: 10 })
+        folder.addBinding(this, 'size', { min: 0, max: 10 })
         .on('change', value => { this.anchor.material.uniforms.uSize.value = this.PARTICLE_SIZE * value.value })
 
-        SmokePuffFolder.addBinding(
+        folder.addBinding(
             this.anchor.material.uniforms.uColor1, 'value', 
             {color: {type: 'float'}, label: 'Main color'}
         ).on('change', value => {
@@ -182,7 +180,7 @@ export default class SmokeParticle {
             console.log(`0x${this.anchor.material.uniforms.uColor1.value.getHexString()}`)
         })
 
-        SmokePuffFolder.addBinding(
+        folder.addBinding(
             this.anchor.material.uniforms.uColor2, 
             'value', 
             {color: {type: 'float'}, label: 'Rim color'}

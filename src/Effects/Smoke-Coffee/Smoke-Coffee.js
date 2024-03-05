@@ -67,6 +67,11 @@ export default class SmokeCoffee {
         this.active = true
     }
 
+    stop() {
+        this.anchor.visible = false
+        this.active = false
+    }
+
     update(delta, speed=this.speed) {
         if (!this.active) return
 
@@ -80,14 +85,22 @@ export default class SmokeCoffee {
     }
 
     setupGUI(pane) {
-        const smokeCoffeeFolder = pane.addFolder({title: 'Smoke Coffee' })
+        const folder = pane.addFolder({title: 'Smoke Coffee', expanded: false})
 
-        smokeCoffeeFolder.addBinding(this, 'scale', { min: 0, max: 10 })
+        folder.addButton({ title: 'Activate' }).on('click', () => { 
+            if (!this.active) this.activate() 
+        })
+
+        folder.addButton({ title: 'Stop' }).on('click', () => { 
+            if (this.active) this.stop() 
+        })
+
+        folder.addBinding(this, 'scale', { min: 0, max: 10 })
             .on('change', value => { this.anchor.scale.setScalar(value.value) })
 
-        smokeCoffeeFolder.addBinding(this, 'speed', { min: 0, max: 20 })
+        folder.addBinding(this, 'speed', { min: 0, max: 20 })
 
-        smokeCoffeeFolder.addBinding(
+        folder.addBinding(
             this.anchor.material.uniforms.uColor, 
             'value', 
             {color: {type: 'float'}, label: 'Color'}

@@ -2,7 +2,6 @@ uniform float uTime;
 uniform vec3 uColor1;
 uniform vec3 uColor2;
 uniform sampler2D uTexture;
-
 varying float vDelay;
 
 void main()
@@ -18,7 +17,7 @@ void main()
     float strength = 1.0 - distance(newPointCoord, vec2(0.5)) * 2.0;
     strength = smoothstep(0.0, 0.5, strength);
 
-    float alpha = pow(1.0 - (uTime + vDelay), 2.0);
+    float alpha = 1.0 - uTime - vDelay;
 
     vec4 color = vec4(smokeColor, strength * alpha);
     if (color.a < 0.01) discard;

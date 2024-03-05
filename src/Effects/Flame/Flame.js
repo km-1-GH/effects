@@ -46,6 +46,7 @@ export default class Flame {
         this.create(this.scene)
 
         this.elapsed = 0
+        this.active = false
 
         if (pane) this.setupGUI(pane)
     }
@@ -112,7 +113,7 @@ export default class Flame {
         this.anchor = new THREE.Points(geometry, material)
         this.anchor.position.copy(this.position)
         this.anchor.scale.setScalar(this.scale)
-        // this.anchor.visible = false  /////////////
+        this.anchor.visible = false
         this.anchor.userData.state = 'off'
         scene.add(this.anchor)
     }
@@ -123,15 +124,35 @@ export default class Flame {
     }
 
     activate(position=this.position) {
+        this.anchor.position.copy(position)
+        this.anchor.visible = true
+        this.active = true
+        this.elapsed = 0
+    }
+
+    stop() {
+        this.anchor.visible = false
+        this.active = false
     }
 
     update(delta, speed=this.speed) {
+        if (!this.active) return
+
         this.elapsed += delta * speed
         this.anchor.material.uniforms.uTime.value = this.elapsed
     }
 
     setupGUI(pane) {
-        const folder = pane.addFolder({ title: 'Flame' })
+        const folder = pane.addFolder({ title: 'Flame', expanded: false})
+
+        folder.addButton({ title: 'Activate' }).on('click', () => { 
+            if (!this.active) this.activate() 
+        })
+
+        folder.addButton({ title: 'Stop' }).on('click', () => { 
+            if (this.active) this.stop() 
+        })
+
         const sampleTextures = {
             flame1: new THREE.TextureLoader().load(flame1),
             flame2: new THREE.TextureLoader().load(flame2),

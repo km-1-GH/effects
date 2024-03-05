@@ -77,9 +77,8 @@ items.smokePuff = new SmokeParticle(
         scene: scene,
         position: new THREE.Vector3(-3, 1, 0),
         pixelRatio: Math.min(window.devicePixelRatio, 2),
-        size: 1.26,
+        size: 1,
         scale: 5,
-        speed: 0.5,
         resolution: sizes.resolution,
     },
     pane
@@ -156,12 +155,9 @@ gltfLoader.load(
     }
 )
 
-
 /**
  * Start Functions
  */
-items.smokePuff.activate()
-items.smokeCoffee.activate()
 
 /**
  * Animate
@@ -180,14 +176,8 @@ const tick = () =>
 
     // Update smokePuff
     items.smokePuff.update(delta)
-    if (items.smokePuff.anchor.userData.state === 'done') {
-        items.smokePuff.activate()
-    }
-
     // Update smokeCoffee
     items.smokeCoffee.update(delta)
-    if (!items.smokeCoffee.active) items.smokeCoffee.activate()
-
     // Update flame
     items.flame.update(delta)
 
