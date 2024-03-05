@@ -23,15 +23,18 @@ window.addEventListener('resize', () =>
     // Update sizes
     sizes.width = window.innerWidth
     sizes.height = window.innerHeight
-    sizes.resolution.set(sizes.width, sizes.height)
-
+    
     // Update camera
     camera.aspect = sizes.width / sizes.height
     camera.updateProjectionMatrix()
-
+    
     // Update renderer
     renderer.setSize(sizes.width, sizes.height)
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+    
+    sizes.resolution.set(sizes.width, sizes.height)
+    items.smokePuff.resize(sizes.resolution)
+    items.flame.resize(sizes.resolution)
 })
 
 /**
@@ -66,34 +69,44 @@ const gltfLoader = new GLTFLoader()
  * Mesh
  */
 const items = {}
+const pane = dev.devSetup(camera, canvas)
 
 // smokePuff
-items.smokePuff = new SmokeParticle({
-    scene: scene,
-    position: new THREE.Vector3(-3, 1, 0),
-    pixelRatio: Math.min(window.devicePixelRatio, 2),
-    size: 1.26,
-    scale: 5,
-    speed: 0.5,
-    color1: new THREE.Color(0xffff00),
-    color2: new THREE.Color(0xff0000),
-    resolution: sizes.resolution,
-})
+items.smokePuff = new SmokeParticle(
+    {
+        scene: scene,
+        position: new THREE.Vector3(-3, 1, 0),
+        pixelRatio: Math.min(window.devicePixelRatio, 2),
+        size: 1.26,
+        scale: 5,
+        speed: 0.5,
+        resolution: sizes.resolution,
+    },
+    pane
+)
 
 // smokeCoffee
-items.smokeCoffee = new SmokeCoffee({
-    scene: scene,
-    scale: 1,
-    speed: 1,
-    position: new THREE.Vector3(0, 1.83, 0),
-})
+items.smokeCoffee = new SmokeCoffee(
+    {
+        scene: scene,
+        scale: 1,
+        speed: 1,
+        position: new THREE.Vector3(0, 1.83, 0),
+    },
+    pane
+)
 
 //flame
-items.flame = new Flame({
-    scene: scene,
-    position: new THREE.Vector3(0, 1, 0),
-    resolution: sizes.resolution,
-})
+items.flame = new Flame(
+    {
+        scene: scene,
+        position: new THREE.Vector3(0, 0.5, 1),
+        resolution: sizes.resolution,
+        size: 0.5,
+        scale: 0.5,
+    },
+    pane
+)
 
 /**
  * Model
@@ -147,7 +160,6 @@ gltfLoader.load(
 /**
  * Start Functions
  */
-dev.devSetup(camera, canvas, items)
 items.smokePuff.activate()
 items.smokeCoffee.activate()
 

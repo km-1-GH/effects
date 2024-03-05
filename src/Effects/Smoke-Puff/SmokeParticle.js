@@ -7,24 +7,26 @@ import noise from '/perlin.png'
  * @module SmokeParticle
  * @param {Object} param - Particle Parameters
  * @param {THREE.Scene} param.scene - Parent Mesh to add
- * @param {number} param.pixelRatio - window.devicePixelRatio
- * @param {THREE.Vector3} param.position - default Position
- * @param {number} param.size - Particle Size Scale
- * @param {number} param.scale - Mesh Destination Scale
- * @param {number} param.speed - Animation Speed
- * @param {String} param.color1 - Main Color
- * @param {String} param.color2 - Rim Color
- * @param {THREE.Texture} param.noise - Noise Texture
+ * @param {number} [param.pixelRatio] - window.devicePixelRatio
+ * @param {THREE.Vector3} [param.position] - default Position
+ * @param {number} [param.size] - Particle Size Scale
+ * @param {number} [param.scale] - Mesh Destination Scale
+ * @param {number} [param.speed] - Animation Speed
+ * @param {String} [param.color1] - Main Color
+ * @param {String} [param.color2] - Rim Color
+ * @param {THREE.Texture} [param.noise] - Noise Texture
+ * @param {THREE.Vector2} [param.resolution] - Resolution
+ * @param {Pane} [tweakpane] - tweakpane instance
  */
 export default class SmokeParticle {
-    constructor(param) {
+    constructor(param, pane=null) {
         this.scene = param.scene
         this.pixelRatio = param.pixelRatio || 1
         this.position = param.position || new THREE.Vector3(0, 0, 0)
         this.size = param.size || 1
         this.destScale = param.scale || 1
-        const color1 = param.color1 || 0xffffff
-        const color2 = param.color2 || 0xd1d1d1
+        const color1 = param.color1 || 0xf7feff
+        const color2 = param.color2 || 0xf8f8f8
         this.speed = param.speed || 0.5
         this.noiseTex = param.noise || new THREE.TextureLoader().load(noise)
         this.resolution = param.resolution || new THREE.Vector2(1000, 750)
@@ -39,6 +41,8 @@ export default class SmokeParticle {
         this.create(this.scene)
 
         this.elapsed = 0
+
+        if (pane) this.setupGUI(pane)
     }
 
     create(scene) {
@@ -103,10 +107,10 @@ export default class SmokeParticle {
         uniforms.uMeshScale = { value: 1 }
         uniforms.uTime = { value: 0 }
         uniforms.uResolution = { value: this.resolution }
+        uniforms.uTexture = { value: this.noiseTex }
         for (let i = 0; i < this.colors.length; i++) {
             uniforms[`uColor${i + 1}`] = { value: this.colors[i] }
         }
-        uniforms.uTexture = { value: this.noiseTex }
 
         const material = new THREE.ShaderMaterial({
             transparent: true,
@@ -125,6 +129,11 @@ export default class SmokeParticle {
         this.anchor.visible = false  /////////////
         this.anchor.userData.state = 'off'
         scene.add(this.anchor)
+    }
+
+    resize(resolution) {
+        this.resolution = resolution
+        this.anchor.material.uniforms.uResolution.value.set(this.resolution.x, this.resolution.y)
     }
 
     activate(position=this.position, addScale=0) {
@@ -154,4 +163,33 @@ export default class SmokeParticle {
         }
     }
 
+    setupGUI(pane) {
+        const SmokePuffFolder = pane.addFolder({title: 'Smoke Puff' })
+
+        SmokePuffFolder.addBinding(this, 'destScale', { min: 0, max: 10 })
+
+        SmokePuffFolder.addBinding(this, 'speed', { min: 0, max: 2 })
+
+        SmokePuffFolder.addBinding(this, 'size', { min: 0, max: 10 })
+        .on('change', value => { this.anchor.material.uniforms.uSize.value = this.PARTICLE_SIZE * value.value })
+
+        SmokePuffFolder.addBinding(
+            this.anchor.material.uniforms.uColor1, 'value', 
+            {color: {type: 'float'}, label: 'Main color'}
+        ).on('change', value => {
+            this.anchor.material.uniforms.uColor1.value = new THREE.Color(value.value.r, value.value.g, value.value.b)
+            .convertLinearToSRGB()
+            console.log(`0x${this.anchor.material.uniforms.uColor1.value.getHexString()}`)
+        })
+
+        SmokePuffFolder.addBinding(
+            this.anchor.material.uniforms.uColor2, 
+            'value', 
+            {color: {type: 'float'}, label: 'Rim color'}
+        ).on('change', value => {
+            this.anchor.material.uniforms.uColor2.value = new THREE.Color(value.value.r, value.value.g, value.value.b)
+            .convertLinearToSRGB()
+            console.log(`0x${this.anchor.material.uniforms.uColor2.value.getHexString()}`)
+        })
+    }
  }

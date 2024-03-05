@@ -12,10 +12,11 @@ import noise from '/perlin.png'
  * @param {Number} param.scale - The scale of the smoke
  * @param {Number} param.speed - The speed of the smoke
  * @param {THREE.Vector3} param.position - The position of the smoke
+ * @param {Pane} param.pane - The pane instance
  */
 
 export default class SmokeCoffee {
-    constructor(param) {
+    constructor(param, pane=null) {
         this.scene = param.scene
         this.color = param.color || new THREE.Color(0xffffff)
         this.scale = param.scale || 1
@@ -29,6 +30,8 @@ export default class SmokeCoffee {
 
         this.active = false
         this.theta = 0
+
+        if (pane) this.setupGUI(pane)
     }
 
     create() {
@@ -74,5 +77,24 @@ export default class SmokeCoffee {
             this.anchor.visible = false
             this.active = false
         }
+    }
+
+    setupGUI(pane) {
+        const smokeCoffeeFolder = pane.addFolder({title: 'Smoke Coffee' })
+
+        smokeCoffeeFolder.addBinding(this, 'scale', { min: 0, max: 10 })
+            .on('change', value => { this.anchor.scale.setScalar(value.value) })
+
+        smokeCoffeeFolder.addBinding(this, 'speed', { min: 0, max: 20 })
+
+        smokeCoffeeFolder.addBinding(
+            this.anchor.material.uniforms.uColor, 
+            'value', 
+            {color: {type: 'float'}, label: 'Color'}
+        ).on('change', value => {
+            this.anchor.material.uniforms.uColor.value = new THREE.Color(value.value.r, value.value.g, value.value.b)
+            .convertLinearToSRGB()
+            console.log(`0x${this.anchor.material.uniforms.uColor.value.getHexString()}`)
+        })
     }
 }
