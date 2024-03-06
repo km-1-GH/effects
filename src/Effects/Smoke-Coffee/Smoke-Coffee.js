@@ -10,7 +10,7 @@ import noise from '/perlin.png'
  * @param {THREE.Texture} param.texture - The path to the noise texture to use for the smoke 
  * @param {THREE.Color} param.color - The color of the smoke
  * @param {Number} param.scale - The scale of the smoke
- * @param {Number} param.speed - The speed of the smoke
+ * @param {Number} param.speed - The speed of animation
  * @param {THREE.Vector3} param.position - The position of the smoke
  * @param {Pane} param.pane - The pane instance
  */

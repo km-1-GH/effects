@@ -1,6 +1,4 @@
 import * as THREE from 'three'
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
-import GUI from 'lil-gui'
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
 
 import * as dev from './dev.js'
@@ -8,6 +6,7 @@ import SmokeParticle from './Effects/Smoke-Puff/SmokeParticle'
 import SmokeCoffee from './Effects/Smoke-Coffee/Smoke-Coffee.js'
 import Flame from './Effects/Flame/Flame.js'
 import HologramMaterial from './Effects/Hologram/HologramMaterial.js'
+import RainbowBubble from './Effects/RainbowBubble/RainbowBubble.js'
 
 
 /**
@@ -111,20 +110,15 @@ items.flame = new Flame(
 // Hologram Material
 const hologramMaterial = new HologramMaterial({ color: new THREE.Color(0xffffff) } , pane)
 
-// Sphere
-const sphere = new THREE.Mesh(
-    new THREE.SphereGeometry(),
-    hologramMaterial.material
-)
-sphere.position.set(-3, 5, 0)
-scene.add(sphere)
+// Rainbow Bubble
+items.rainbowBubble = new RainbowBubble({ scene: scene, position: new THREE.Vector3(-3, 5, 0) }, pane)
 
-// mesh inside sphere
+// mesh inside Bubble
 const insideSphere = new THREE.Mesh(
     new THREE.TorusKnotGeometry(0.4, 0.1, 100, 16),
     new THREE.MeshBasicMaterial({ color: 'pink' })
 )
-insideSphere.position.copy(sphere.position)
+insideSphere.position.copy(items.rainbowBubble.position)
 scene.add(insideSphere)
 
 // Suzanne
@@ -151,11 +145,6 @@ gltfLoader.load('./bakedModel.glb', (gltf) =>
     }
 )
 
-
-/**
- * Start Functions
- */
-
 /**
  * Animate
  */
@@ -165,7 +154,7 @@ let delta = 0
 let elapsed = 0
 let currentTime = 0
 
-const tick = () =>
+const render = () =>
 {
     elapsed = clock.getElapsedTime()
     delta = elapsed - currentTime
@@ -179,20 +168,18 @@ const tick = () =>
     items.flame.update(delta)
     // Update hologramMaterial
     hologramMaterial.material.uniforms.uTime.value = elapsed
+    // Update rainbowBubble
+    items.rainbowBubble.update(delta)
     insideSphere.rotation.x = elapsed * 0.1
     insideSphere.rotation.y = - elapsed * 0.2
 
 
     // Rotate objects
-    if(suzanne)
-    {
+    if(suzanne) {
         suzanne.rotation.x = - elapsed * 0.1
         suzanne.rotation.y = elapsed * 0.2
     }
 
-    sphere.rotation.x = - elapsed * 0.1
-    sphere.rotation.y = elapsed * 0.2
-    
     // Update controls
     dev.render()
 
@@ -200,7 +187,7 @@ const tick = () =>
     renderer.render(scene, camera)
 
     // Call tick again on the next frame
-    window.requestAnimationFrame(tick)
+    window.requestAnimationFrame(render)
 }
 
-tick()
+render()

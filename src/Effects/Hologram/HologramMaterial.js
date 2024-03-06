@@ -14,12 +14,15 @@ export default class HologramMaterial {
     constructor(param, pane=null) {
         this.material = new THREE.ShaderMaterial({
             transparent: true,
+            side: THREE.DoubleSide,
+            depthWrite: false,
             blending: THREE.AdditiveBlending,
             vertexShader,
             fragmentShader,
             uniforms: {
                 uTime: { value: 0 },
                 uOpacity: { value: 0 },
+                uSpeed: { value: param.speed || 1},
                 uColor: { value: param.color || new THREE.Color(0xffffff)},
             },
         })
@@ -45,7 +48,7 @@ export default class HologramMaterial {
     update(delta) {
         if (!this.active) return
 
-        this.elapsed += delta
+        this.elapsed += delta * this.speed
         this.material.uniforms.uTime.value = this.elapsed
     }
 
@@ -59,6 +62,8 @@ export default class HologramMaterial {
         folder.addButton({ title: 'Stop' }).on('click', () => { 
             if (this.active) this.stop() 
         })
+
+        folder.addBinding(this.material.uniforms.uSpeed, 'value', {min: 0.1, max: 5, step: 0.01, label: 'Speed'})
 
         folder.addBinding(
             this.material.uniforms.uColor, 
