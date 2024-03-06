@@ -7,6 +7,7 @@ import * as dev from './dev.js'
 import SmokeParticle from './Effects/Smoke-Puff/SmokeParticle'
 import SmokeCoffee from './Effects/Smoke-Coffee/Smoke-Coffee.js'
 import Flame from './Effects/Flame/Flame.js'
+import HologramMaterial from './Effects/Hologram/HologramMaterial.js'
 
 
 /**
@@ -107,53 +108,49 @@ items.flame = new Flame(
     pane
 )
 
+// Hologram Material
+const hologramMaterial = new HologramMaterial({ color: new THREE.Color(0xffffff) } , pane)
+
+// Sphere
+const sphere = new THREE.Mesh(
+    new THREE.SphereGeometry(),
+    hologramMaterial.material
+)
+sphere.position.set(-3, 5, 0)
+scene.add(sphere)
+
+// mesh inside sphere
+const insideSphere = new THREE.Mesh(
+    new THREE.TorusKnotGeometry(0.4, 0.1, 100, 16),
+    new THREE.MeshBasicMaterial({ color: 'pink' })
+)
+insideSphere.position.copy(sphere.position)
+scene.add(insideSphere)
+
+// Suzanne
+let suzanne = null
+gltfLoader.load('./suzanne.glb', (gltf) => {
+        suzanne = gltf.scene
+        suzanne.traverse((child) => {
+            if(child.isMesh)
+                child.material = hologramMaterial.material
+        })
+        suzanne.position.set(0, 5, 0)
+        scene.add(suzanne)
+    }
+)
+
+
 /**
  * Model
  */
-gltfLoader.load(
-    './bakedModel.glb',
-    (gltf) =>
+gltfLoader.load('./bakedModel.glb', (gltf) =>
     {
         gltf.scene.getObjectByName('baked').material.map.anisotropy = 8
         scene.add(gltf.scene)
     }
 )
 
-// Hologram
-const material = new THREE.MeshBasicMaterial()
-
-// Torus knot
-const torusKnot = new THREE.Mesh(
-    new THREE.TorusKnotGeometry(0.6, 0.25, 128, 32),
-    material
-)
-torusKnot.position.set(3, 5, 0)
-scene.add(torusKnot)
-
-// Sphere
-const sphere = new THREE.Mesh(
-    new THREE.SphereGeometry(),
-    material
-)
-sphere.position.set(-3, 5, 0)
-scene.add(sphere)
-
-// Suzanne
-let suzanne = null
-gltfLoader.load(
-    './suzanne.glb',
-    (gltf) =>
-    {
-        suzanne = gltf.scene
-        suzanne.traverse((child) =>
-        {
-            if(child.isMesh)
-                child.material = material
-        })
-        suzanne.position.set(0, 5, 0)
-        scene.add(suzanne)
-    }
-)
 
 /**
  * Start Functions
@@ -180,6 +177,10 @@ const tick = () =>
     items.smokeCoffee.update(delta)
     // Update flame
     items.flame.update(delta)
+    // Update hologramMaterial
+    hologramMaterial.material.uniforms.uTime.value = elapsed
+    insideSphere.rotation.x = elapsed * 0.1
+    insideSphere.rotation.y = - elapsed * 0.2
 
 
     // Rotate objects
@@ -191,9 +192,6 @@ const tick = () =>
 
     sphere.rotation.x = - elapsed * 0.1
     sphere.rotation.y = elapsed * 0.2
-
-    torusKnot.rotation.x = - elapsed * 0.1
-    torusKnot.rotation.y = elapsed * 0.2
     
     // Update controls
     dev.render()

@@ -9,6 +9,7 @@ import noise from '/perlin.png'
  * @param {THREE.Scene} param.scene - Parent Mesh to add
  * @param {number} [param.pixelRatio] - window.devicePixelRatio
  * @param {THREE.Vector3} [param.position] - default Position
+* @param {number} [param.speed] - Animation Speed
  * @param {number} [param.size] - Particle Size Scale
  * @param {number} [param.scale] - Mesh Destination Scale
  * @param {String} [param.color1] - Main Color
@@ -22,6 +23,7 @@ export default class SmokeParticle {
         this.scene = param.scene
         this.pixelRatio = param.pixelRatio || 1
         this.position = param.position || new THREE.Vector3(0, 0, 0)
+        this.speed = param.speed || 1
         this.size = param.size || 1
         this.destScale = param.scale || 1
         const color1 = param.color1 || 0xf7feff
@@ -134,11 +136,12 @@ export default class SmokeParticle {
         this.anchor.material.uniforms.uResolution.value.set(this.resolution.x, this.resolution.y)
     }
 
-    activate(position=this.position, addScale=0) {
+    activate(position=this.position, addScale=0, speed=this.speed) {
         this.anchor.position.set(position.x, position.y, position.z)
         this.anchor.rotation.z = Math.random() * Math.PI * 2
         this.anchor.scale.setScalar(this.destScale + addScale)
         this.anchor.material.uniforms.uMeshScale.value = this.destScale + addScale
+        this.speed = speed
 
         this.elapsed = 0
         this.anchor.userData.state = 'on'
@@ -148,7 +151,7 @@ export default class SmokeParticle {
     update(delta) {
         if (this.anchor.userData.state !== 'on') return ////////////
 
-        this.elapsed += delta * 0.5
+        this.elapsed += delta * 0.5 * this.speed
         this.anchor.material.uniforms.uTime.value = this.elapsed
 
         if (this.elapsed >= 1) {
@@ -167,6 +170,8 @@ export default class SmokeParticle {
         })
 
         folder.addBinding(this, 'destScale', { min: 0, max: 10 })
+
+        folder.addBinding(this, 'speed', { min: 0, max: 5 })
 
         folder.addBinding(this, 'size', { min: 0, max: 10 })
         .on('change', value => { this.anchor.material.uniforms.uSize.value = this.PARTICLE_SIZE * value.value })
