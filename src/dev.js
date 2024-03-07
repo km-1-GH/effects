@@ -2,8 +2,7 @@ import * as THREE from "three"
 import { Pane } from "tweakpane"
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js"
 
-const guiParam = {}
-
+const pane = new Pane()
 let controls
 
 export function devSetup(camera, canvas) {
@@ -12,8 +11,6 @@ export function devSetup(camera, canvas) {
     controls.target.y = 3
     controls.enableDamping = true
 
-    // gui
-    const pane = new Pane()
 
     /*
     *   reset control
@@ -25,7 +22,9 @@ export function devSetup(camera, canvas) {
         controls.target.y = 3
         controls.enableDamping = true
     })
+}
 
+export function getPane() {
     return pane
 }
 

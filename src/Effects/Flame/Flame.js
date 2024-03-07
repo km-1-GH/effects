@@ -20,6 +20,7 @@ import flame4 from '/flame_04.png'
  * @param {String} param.color1 - Main Color
  * @param {String} param.color2 - Rim Color
  * @param {THREE.Vector2} [param.resolution=new THREE.Vector2(1000, 750)] - canvas' Resolution
+ * @param {number} param.count - Number of Flames
  * @param {Pane} tweakpane - tweakpane instance
  */
 
@@ -35,6 +36,7 @@ export default class Flame {
         const color2 = param.color2 || 0xb08100
         this.speed = param.speed || 0.5
         this.resolution = param.resolution || new THREE.Vector2(1000, 750)
+        this.count = param.count || 1
         
         this.color1 = new THREE.Color(color1),
         this.color2 = new THREE.Color(color2),
@@ -116,6 +118,16 @@ export default class Flame {
         this.anchor.visible = false
         this.anchor.userData.state = 'off'
         scene.add(this.anchor)
+
+        if (this.count > 1) {
+            for (let i = 0; i < this.count - 1; i++) {
+                const anchor = new THREE.Points(geometry, material)
+                anchor.position.set((Math.floor(i / 2) + 1) * ((i % 2) * 2 - 1) * 2.8, 0, 0)
+                anchor.scale.setScalar(1 / this.scale * this.scale)
+                anchor.visible = true
+                this.anchor.add(anchor)
+            }
+        }
     }
 
     resize(resolution) {
@@ -197,6 +209,9 @@ export default class Flame {
         })
 
         folder.addBinding(this, 'speed', {min: 0.1, max: 2})
+
+        folder.addBinding(this, 'scale', {min: 0.1, max: 10})
+            .on('change', value => { this.anchor.scale.setScalar(value.value) })
     }
 
  }

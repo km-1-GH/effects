@@ -17,3 +17,7 @@ body
     left: 0;
     outline: none;
 }
+
+button.tp-fldv_b {
+    color: skyblue;
+}

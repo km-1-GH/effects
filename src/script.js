@@ -8,7 +8,6 @@ import Flame from './Effects/Flame/Flame.js'
 import HologramMaterial from './Effects/Hologram/HologramMaterial.js'
 import RainbowBubble from './Effects/RainbowBubble/RainbowBubble.js'
 
-
 /**
  * Sizes
  */
@@ -45,9 +44,9 @@ const canvas = document.querySelector('canvas.webgl')
 const scene = new THREE.Scene()
 
 const camera = new THREE.PerspectiveCamera(25, sizes.width / sizes.height, 0.1, 100)
-camera.position.x = 8
-camera.position.y = 10
-camera.position.z = 12
+camera.position.x = 9
+camera.position.y = 8
+camera.position.z = 20
 scene.add(camera)
 
 const renderer = new THREE.WebGLRenderer({
@@ -62,14 +61,11 @@ const textureLoader = new THREE.TextureLoader()
 const gltfLoader = new GLTFLoader()
 
 /**
- * Textures
- */
-
-/**
  * Mesh
  */
 const items = {}
-const pane = dev.devSetup(camera, canvas)
+dev.devSetup(camera, canvas)
+const pane = dev.getPane()
 
 // smokePuff
 items.smokePuff = new SmokeParticle(
@@ -99,38 +95,31 @@ items.smokeCoffee = new SmokeCoffee(
 items.flame = new Flame(
     {
         scene: scene,
-        position: new THREE.Vector3(0, 0.5, 1),
+        position: new THREE.Vector3(-3, 0.2, 5),
         resolution: sizes.resolution,
-        size: 0.5,
-        scale: 0.5,
+        size: 0.3,
+        scale: 0.3,
+        count: 3,
     },
     pane
 )
 
-// Hologram Material
+// Hologram Material & Rainbow Bubble
 const hologramMaterial = new HologramMaterial({ color: new THREE.Color(0xffffff) } , pane)
-
-// Rainbow Bubble
-items.rainbowBubble = new RainbowBubble({ scene: scene, position: new THREE.Vector3(-3, 5, 0) }, pane)
-
-// mesh inside Bubble
-const insideSphere = new THREE.Mesh(
-    new THREE.TorusKnotGeometry(0.4, 0.1, 100, 16),
-    new THREE.MeshBasicMaterial({ color: 'pink' })
-)
-insideSphere.position.copy(items.rainbowBubble.position)
-scene.add(insideSphere)
-
 // Suzanne
 let suzanne = null
+let suzanneRainbowBubble
 gltfLoader.load('./suzanne.glb', (gltf) => {
         suzanne = gltf.scene
         suzanne.traverse((child) => {
             if(child.isMesh)
                 child.material = hologramMaterial.material
         })
-        suzanne.position.set(0, 5, 0)
+        suzanne.position.set(0, 2, -2)
+        suzanne.scale.setScalar(0.7)
         scene.add(suzanne)
+
+        suzanneRainbowBubble = new RainbowBubble({ scene: suzanne, scale: 1.6 }, pane)
     }
 )
 
@@ -168,16 +157,19 @@ const render = () =>
     items.flame.update(delta)
     // Update hologramMaterial
     hologramMaterial.material.uniforms.uTime.value = elapsed
-    // Update rainbowBubble
-    items.rainbowBubble.update(delta)
-    insideSphere.rotation.x = elapsed * 0.1
-    insideSphere.rotation.y = - elapsed * 0.2
-
-
+    
+    
     // Rotate objects
     if(suzanne) {
         suzanne.rotation.x = - elapsed * 0.1
         suzanne.rotation.y = elapsed * 0.2
+        // Update rainbowBubble
+        if (suzanneRainbowBubble.state === 'on') {
+            suzanne.position.x = Math.cos(elapsed * 0.6) * 5
+            suzanne.position.y = Math.sin(elapsed * 1.4) * 2 + 2
+            suzanne.position.z = Math.cos(elapsed * 0.2) * 3 - 2
+        }
+        suzanneRainbowBubble.update(delta)
     }
 
     // Update controls
