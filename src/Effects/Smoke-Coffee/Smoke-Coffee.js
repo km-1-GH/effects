@@ -29,7 +29,7 @@ export default class SmokeCoffee {
         this.create()
 
         this.active = false
-        this.theta = 0
+        this.elapsed = 0
 
         if (pane) this.setupGUI(pane)
     }
@@ -62,8 +62,8 @@ export default class SmokeCoffee {
 
     activate(position=this.position) {
         this.anchor.position.copy(position)
-        // this.anchor.visible = true
-        this.theta = 0
+        this.anchor.visible = true
+        this.elapsed = 0
         this.active = true
     }
 
@@ -75,8 +75,8 @@ export default class SmokeCoffee {
     update(delta, speed=this.speed) {
         if (!this.active) return
 
-        this.theta += delta * speed
-        this.anchor.material.uniforms.uTime.value = this.theta
+        this.elapsed += delta * speed
+        this.anchor.material.uniforms.uTime.value = this.elapsed
     }
 
     setupGUI(pane) {
@@ -84,7 +84,6 @@ export default class SmokeCoffee {
 
         folder.addButton({ title: 'Activate' }).on('click', () => { 
             if (!this.active) this.activate() 
-            console.log(this);
         })
 
         folder.addButton({ title: 'Stop' }).on('click', () => { 
