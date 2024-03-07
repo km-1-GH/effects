@@ -8,7 +8,7 @@ import flame3 from '/flame_03.png'
 import flame4 from '/flame_04.png'
 
 /**
- * @module Flame
+ * @module Fire
  * @param {Object} param - Particle Parameters
  * @param {THREE.Scene} param.scene - Parent Mesh to add
  * @param {number} param.pixelRatio - window.devicePixelRatio
@@ -20,11 +20,10 @@ import flame4 from '/flame_04.png'
  * @param {String} param.color1 - Main Color
  * @param {String} param.color2 - Rim Color
  * @param {THREE.Vector2} [param.resolution=new THREE.Vector2(1000, 750)] - canvas' Resolution
- * @param {number} param.count - Number of Flames
  * @param {Pane} tweakpane - tweakpane instance
  */
 
-export default class Flame {
+export default class Fire {
     constructor(param, pane = null) {
         this.scene = param.scene
         this.pixelRatio = param.pixelRatio || 1
@@ -34,14 +33,14 @@ export default class Flame {
         this.scale = param.scale || 1
         const color1 = param.color1 || 0xe38500
         const color2 = param.color2 || 0xb08100
-        this.speed = param.speed || 0.5
+        this.speed = param.speed || 1
         this.resolution = param.resolution || new THREE.Vector2(1000, 750)
-        this.count = param.count || 1
         
         this.color1 = new THREE.Color(color1),
         this.color2 = new THREE.Color(color2),
         this.PARTICLE_SIZE = 3.4 * this.size
         this.noiseTex = new THREE.TextureLoader().load(noise)
+        this.noiseTex.wrapS = this.noiseTex.wrapT = THREE.RepeatWrapping
         this.flameTex = new THREE.TextureLoader().load(flame4)
 
         this.anchor
@@ -66,12 +65,11 @@ export default class Flame {
         for (let i = 0; i < this.particleCount; i++) {
             // position
             const i3 = i * 3
-            positions[i3 + 0] = Math.random() * 2 - 1 // -1 ~ 1
-            positions[i3 + 1] = -1
-            positions[i3 + 2] = (Math.random() * 2 - 1) * 0.4 // -0.4 ~ 0.4
+            positions[i3 + 0] = (Math.random() * 2 - 1) * 0.1
+            positions[i3 + 1] = (Math.random() * 2 - 1) * 0.05
+            positions[i3 + 2] = (Math.random() * 2 - 1) * 0.1
             // color
             mixColorRatioArr[i] = Math.random() * 0.8
-
             // scale
             scales[i] = 0.5 + Math.random() // 0.5 ~ 1.5
             // time
@@ -117,16 +115,6 @@ export default class Flame {
         this.anchor.visible = false
         this.anchor.userData.state = 'off'
         scene.add(this.anchor)
-
-        if (this.count > 1) {
-            for (let i = 0; i < this.count - 1; i++) {
-                const anchor = new THREE.Points(geometry, material)
-                anchor.position.set((Math.floor(i / 2) + 1) * ((i % 2) * 2 - 1) * 2.8, 0, 0)
-                anchor.scale.setScalar(1 / this.scale * this.scale)
-                anchor.visible = true
-                this.anchor.add(anchor)
-            }
-        }
     }
 
     resize(resolution) {
@@ -141,27 +129,23 @@ export default class Flame {
         this.elapsed = 0
     }
 
-    stop() {
-        this.anchor.visible = false
-        this.active = false
-    }
-
     update(delta, speed=this.speed) {
         if (!this.active) return
 
         this.elapsed += delta * speed
         this.anchor.material.uniforms.uTime.value = this.elapsed
+
+        if (this.elapsed > 1) {
+            this.active = false
+            this.anchor.visible = false
+        }
     }
 
     setupGUI(pane) {
-        const folder = pane.addFolder({ title: 'Flame', expanded: false})
+        const folder = pane.addFolder({ title: 'Fire', expanded: false})
 
-        folder.addButton({ title: 'Activate' }).on('click', () => { 
+        folder.addButton({ title: 'Run' }).on('click', () => { 
             if (!this.active) this.activate() 
-        })
-
-        folder.addButton({ title: 'Stop' }).on('click', () => { 
-            if (this.active) this.stop() 
         })
 
         const sampleTextures = {
@@ -212,7 +196,8 @@ export default class Flame {
         folder.addBinding(this, 'scale', {min: 0.1, max: 5})
             .on('change', value => { this.anchor.scale.setScalar(value.value) })
 
-        folder.addBinding(this.anchor.material.uniforms.uSize, 'value', { label: 'size', min: 0.1, max: 20})
+        folder.addBinding(this, 'size', { min: 0.1, max: 3 })
+            .on('change', value => { this.anchor.material.uniforms.uSize.value = this.PARTICLE_SIZE * value.value })
     }
 
  }

@@ -7,6 +7,7 @@ import SmokeCoffee from './Effects/Smoke-Coffee/Smoke-Coffee.js'
 import Flame from './Effects/Flame/Flame.js'
 import HologramMaterial from './Effects/Hologram/HologramMaterial.js'
 import RainbowBubble from './Effects/RainbowBubble/RainbowBubble.js'
+import Fire from './Effects/Fire/Fire.js'
 
 /**
  * Sizes
@@ -91,14 +92,26 @@ items.smokeCoffee = new SmokeCoffee(
     pane
 )
 
+// fire
+items.fire = new Fire(
+    {
+        scene: scene,
+        position: new THREE.Vector3(3, 1, 3),
+        resolution: sizes.resolution,
+        size: 0.7,
+        scale: 0.7,
+    },
+    pane
+)
+
 //flame
 items.flame = new Flame(
     {
         scene: scene,
         position: new THREE.Vector3(-3, 0.2, 5),
         resolution: sizes.resolution,
-        size: 0.3,
-        scale: 0.3,
+        size: 0.5,
+        scale: 0.5,
         count: 3,
     },
     pane
@@ -153,6 +166,8 @@ const render = () =>
     items.smokePuff.update(delta)
     // Update smokeCoffee
     items.smokeCoffee.update(delta)
+    // update fire
+    items.fire.update(delta)
     // Update flame
     items.flame.update(delta)
     // Update hologramMaterial

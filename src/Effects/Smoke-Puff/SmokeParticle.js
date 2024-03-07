@@ -14,7 +14,6 @@ import noise from '/perlin.png'
  * @param {number} [param.scale] - Mesh Destination Scale
  * @param {String} [param.color1] - Main Color
  * @param {String} [param.color2] - Rim Color
- * @param {THREE.Texture} [param.noise] - Noise Texture
  * @param {THREE.Vector2} [param.resolution] - Resolution
  * @param {Pane} [tweakpane] - tweakpane instance
  */
@@ -28,9 +27,9 @@ export default class SmokeParticle {
         this.destScale = param.scale || 1
         const color1 = param.color1 || 0xf7feff
         const color2 = param.color2 || 0xf8f8f8
-        this.noiseTex = param.noise || new THREE.TextureLoader().load(noise)
         this.resolution = param.resolution || new THREE.Vector2(1000, 750)
         
+        this.noiseTex = new THREE.TextureLoader().load(noise)
         this.colors = [
             new THREE.Color(color1),
             new THREE.Color(color2),
@@ -107,15 +106,14 @@ export default class SmokeParticle {
         uniforms.uMeshScale = { value: 1 }
         uniforms.uTime = { value: 0 }
         uniforms.uResolution = { value: this.resolution }
-        uniforms.uTexture = { value: this.noiseTex }
+        uniforms.uNoiseTex = { value: this.noiseTex }
         for (let i = 0; i < this.colors.length; i++) {
             uniforms[`uColor${i + 1}`] = { value: this.colors[i] }
         }
 
         const material = new THREE.ShaderMaterial({
             transparent: true,
-            depthTest: false,
-            vertexColors: true,
+            depthWrite: false,
             vertexShader: particleVertex,
             fragmentShader: particleFragment,
             uniforms: uniforms,
@@ -165,7 +163,7 @@ export default class SmokeParticle {
     setupGUI(pane) {
         const folder = pane.addFolder({ title: 'Smoke Puff', expanded: false})
 
-        folder.addButton({ title: 'Activate' }).on('click', () => { 
+        folder.addButton({ title: 'Run' }).on('click', () => { 
             if (this.anchor.userData.state !== 'on') this.activate() 
         })
 
