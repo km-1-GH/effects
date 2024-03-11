@@ -8,6 +8,7 @@ import Flame from './Effects/Flame/Flame.js'
 import HologramMaterial from './Effects/Hologram/HologramMaterial.js'
 import RainbowBubble from './Effects/RainbowBubble/RainbowBubble.js'
 import Fire from './Effects/Fire/Fire.js'
+import PoppingHeart from './Effects/PoppingHeart/PoppingHeart.js'
 
 /**
  * Sizes
@@ -136,6 +137,20 @@ gltfLoader.load('./suzanne.glb', (gltf) => {
     }
 )
 
+// Popping Heart
+items.poppingHeart = new PoppingHeart(
+    {
+        scene: scene,
+        position: new THREE.Vector3(0, 1, 2),
+        count: 7,
+        speed: 1.5,
+        size: 1,
+        height: 1,
+        resolution: sizes.resolution,
+    },
+    pane
+)
+
 
 /**
  * Model
@@ -172,6 +187,8 @@ const render = () =>
     items.flame.update(delta)
     // Update hologramMaterial
     hologramMaterial.material.uniforms.uTime.value = elapsed
+    // Update poppingHeart
+    items.poppingHeart.update(delta)
     
     
     // Rotate objects
