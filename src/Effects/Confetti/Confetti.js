@@ -1,34 +1,34 @@
 import * as THREE from 'three'
 import vertexShader from './shader/vertex.glsl'
 import fragmentShader from './shader/fragment.glsl'
-import heartTex from '/heart.png'
+import confettiTex from '/confetti.png'
 
 /**
- * @module PoppingHeart
+ * @module Confetti
  * @param {Object} param - Particle Parameters
  * @param {THREE.Scene} param.scene - Parent Mesh to add
  * @param {number} [param.pixelRatio] - window.devicePixelRatio
  * @param {THREE.Vector3} [param.position] - default Position
  * @param {number} [param.count] - Particle Count
  * @param {number} [param.speed] - Animation Speed
- * @param {number} [param.height] - How high the Particle goes
+ * @param {number} [param.height] - How high the Particle pops
  * @param {number} [param.size] - Particle Size Scale
  * @param {THREE.Vector2} [param.resolution] - Resolution
  * @param {THREE.Texture} [param.texture] - Texture
  * @param {Pane} [tweakpane] - tweakpane instance
  */
 
-export default class PoppingHeart {
+export default class Confetti {
     constructor(param, pane=null) {
         this.scene = param.scene
         this.pixelRatio = param.pixelRatio || 1
         this.position = param.position || new THREE.Vector3(0, 0, 0)
-        this.count = param.count || 7
+        this.count = param.count || 30
         this.speed = param.speed || 1
         this.height = param.height || 1
         this.size = param.size || 1
         this.resolution = param.resolution || new THREE.Vector2(1000, 750)
-        this.texture = param.texture || new THREE.TextureLoader().load(heartTex)
+        this.texture = param.texture || new THREE.TextureLoader().load(confettiTex)
         this.PARTICLE_SIZE = 1 * param.size
 
         this.texture.flipY = false
@@ -53,22 +53,22 @@ export default class PoppingHeart {
         const geometry = new THREE.BufferGeometry()
         const positions = new Float32Array(this.count * 3)
         const scales = new Float32Array(this.count)
-        const delay = new Float32Array(this.count)
+        const texIndex = new Float32Array(this.count)
 
         for (let i = 0; i < this.count; i++) {
             const i3 = i * 3
 
             // position
             positions[i3 + 0] = (Math.random() * 2 - 1) * 0.02
-            positions[i3 + 1] = Math.random() * 0.01 //上方向のみ
-            positions[i3 + 2] = (Math.random() * 2 - 1) * 0.01
+            positions[i3 + 1] = Math.random() * 0.02 //上方向のみ
+            positions[i3 + 2] = (Math.random() * 2 - 1) * 0.02
             scales[i] = 0.5 + Math.random() * 0.5
-            delay[i] = i * (2 / this.count) + (Math.random()  * 2 - 1) * 0.1
+            texIndex[i] = Math.floor(Math.random() * 4)
         }
 
         geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3))
         geometry.setAttribute('aScale', new THREE.BufferAttribute(scales, 1))
-        geometry.setAttribute('aDelay', new THREE.BufferAttribute(delay, 1))
+        geometry.setAttribute('aTexIndex', new THREE.BufferAttribute(texIndex, 1))
 
         /**
          * material
@@ -93,7 +93,7 @@ export default class PoppingHeart {
          */
         this.anchor = new THREE.Points(geometry, material)
         this.anchor.position.copy(this.position)
-        this.anchor.visible = false
+        // this.anchor.visible = false
         scene.add(this.anchor)
 
     }
@@ -105,19 +105,19 @@ export default class PoppingHeart {
     }
 
     update(delta) {
-        if (!this.active) return
+        // if (!this.active) return
 
         this.elapsed  += delta * this.speed
         this.anchor.material.uniforms.uTime.value = this.elapsed
 
-        if (this.elapsed > 3) {
-            this.active = false
-            this.visible = false
-        }
+        // if (this.elapsed > 3) {
+        //     this.active = false
+        //     this.visible = false
+        // }
     }
 
     setupGUI(pane) {
-        const folder = pane.addFolder({ title: 'PoppingHeart' })
+        const folder = pane.addFolder({ title: 'Confetti' })
 
         folder.addButton({ title: 'Run' }).on('click', () => { 
             if (!this.active) this.activate() 

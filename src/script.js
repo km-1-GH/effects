@@ -9,6 +9,7 @@ import HologramMaterial from './Effects/Hologram/HologramMaterial.js'
 import RainbowBubble from './Effects/RainbowBubble/RainbowBubble.js'
 import Fire from './Effects/Fire/Fire.js'
 import PoppingHeart from './Effects/PoppingHeart/PoppingHeart.js'
+import Confetti from './Effects/Confetti/Confetti.js'
 
 /**
  * Sizes
@@ -141,9 +142,23 @@ gltfLoader.load('./suzanne.glb', (gltf) => {
 items.poppingHeart = new PoppingHeart(
     {
         scene: scene,
-        position: new THREE.Vector3(0, 1, 2),
+        position: new THREE.Vector3(0, 2, 0),
         count: 7,
         speed: 1.5,
+        size: 1,
+        height: 1,
+        resolution: sizes.resolution,
+    },
+    pane
+)
+
+// Confetti
+items.confetti = new Confetti(
+    {
+        scene: scene,
+        position: new THREE.Vector3(0, 1, 2),
+        count: 7,
+        speed: 1,
         size: 1,
         height: 1,
         resolution: sizes.resolution,
@@ -189,6 +204,8 @@ const render = () =>
     hologramMaterial.material.uniforms.uTime.value = elapsed
     // Update poppingHeart
     items.poppingHeart.update(delta)
+    // Update confetti
+    items.confetti.update(delta)
     
     
     // Rotate objects
