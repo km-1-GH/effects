@@ -157,7 +157,7 @@ items.confetti = new Confetti(
     {
         scene: scene,
         position: new THREE.Vector3(0, 1, 2),
-        count: 7,
+        count: 60,
         speed: 1,
         size: 1,
         height: 1,

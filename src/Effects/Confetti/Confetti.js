@@ -53,22 +53,24 @@ export default class Confetti {
         const geometry = new THREE.BufferGeometry()
         const positions = new Float32Array(this.count * 3)
         const scales = new Float32Array(this.count)
-        const texIndex = new Float32Array(this.count)
+        const delay = new Float32Array(this.count)
 
         for (let i = 0; i < this.count; i++) {
             const i3 = i * 3
 
             // position
-            positions[i3 + 0] = (Math.random() * 2 - 1) * 0.02
-            positions[i3 + 1] = Math.random() * 0.02 //上方向のみ
-            positions[i3 + 2] = (Math.random() * 2 - 1) * 0.02
+            positions[i3 + 0] = (Math.random() * 2 - 1) * 0.03
+            positions[i3 + 1] = Math.random() * 0.05 //上方向のみ
+            positions[i3 + 2] = (Math.random() * 2 - 1) * 0.01
+            // scale
             scales[i] = 0.5 + Math.random() * 0.5
-            texIndex[i] = Math.floor(Math.random() * 4)
+            // delay
+            delay[i] = Math.random() * 2 - 1
         }
 
         geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3))
         geometry.setAttribute('aScale', new THREE.BufferAttribute(scales, 1))
-        geometry.setAttribute('aTexIndex', new THREE.BufferAttribute(texIndex, 1))
+        geometry.setAttribute('aDelay', new THREE.BufferAttribute(delay, 1))
 
         /**
          * material
@@ -106,7 +108,6 @@ export default class Confetti {
 
     update(delta) {
         // if (!this.active) return
-
         this.elapsed  += delta * this.speed
         this.anchor.material.uniforms.uTime.value = this.elapsed
 
@@ -117,7 +118,7 @@ export default class Confetti {
     }
 
     setupGUI(pane) {
-        const folder = pane.addFolder({ title: 'Confetti' })
+        const folder = pane.addFolder({ title: 'Confetti', expanded: false})
 
         folder.addButton({ title: 'Run' }).on('click', () => { 
             if (!this.active) this.activate() 
@@ -131,7 +132,7 @@ export default class Confetti {
         folder.addBinding(this, 'size', { min: 0, max: 3})
             .on('change', () => { this.anchor.material.uniforms.uSize.value = this.size })
 
-        folder.addBinding(this, 'count', { min: 0, max: 30, step: 1, label: 'count'})
+        folder.addBinding(this, 'count', { min: 30, max: 100, step: 1, label: 'count'})
             .on('change', () => {
                 this.active = false
                 this.scene.remove(this.anchor)

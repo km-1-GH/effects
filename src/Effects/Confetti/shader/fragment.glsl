@@ -3,12 +3,15 @@ uniform float uTime;
 
 varying float vDelay;
 
+float PI = 3.14159265359;
+
 #include '../../Utils/map.glsl'
+#include '../../Utils/rotate2D.glsl'
 
 void main() {
-    float fadingTime = clamp(map(mod(uTime, 3.0) - (vDelay * 1.2), 1.0, 1.5, 0.0, 1.0), 0.0, 1.0);
-    vec4 color = texture2D(uTexture, gl_PointCoord);
+    vec2 offsetedPointCoord = gl_PointCoord - vec2(0.5);
+    vec2 rotatedPointCoord = rotate2D(offsetedPointCoord, (uTime * vDelay) * 3.0) + vec2(0.5);
+    vec4 color = texture2D(uTexture, rotatedPointCoord);
 
-    color.a *= 1.0 - pow(fadingTime, 2.0);
     gl_FragColor = vec4(color);
 }

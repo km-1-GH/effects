@@ -15,11 +15,16 @@ float PI = 3.1415926535897932384626433832795;
 void main() {
     vec3 newPosition = position;
 
-    float popTime = clamp(map(mod(uTime, 3.0) - aDelay, 0.0, 0.6, 0.0, 1.0), 0.0, 1.0);
-    float riseTime = clamp(map(mod(uTime, 3.0) - aDelay, 0.3, 3.0, 0.0, 1.0), 0.0, 1.0);
-    vec3 vector = normalize(position);
-    newPosition.x += vector.x * pow(riseTime, 2.0) * 3.0;
-    newPosition.y += (1.0 - (pow(1.0 - popTime, 2.0))) * uHeight + riseTime * uHeight * 3.0;
+    vec3 direction = normalize(position);
+    float distance = 1.0 + length(position) * 10.0;
+    float spreadTime = clamp(map(mod(uTime, 5.0), 0.0, 0.3, 0.0, 1.0), 0.0, 1.0);
+    spreadTime = 1.0 - pow(1.0 - spreadTime, 2.0);
+    float fallingTime = clamp(map(mod(uTime, 5.0), 0.2, 5.0, 0.0, 1.0), 0.0, 1.0);
+
+    newPosition += direction * distance * spreadTime * 3.0;
+    newPosition.y += spreadTime;
+    newPosition.y -= pow((fallingTime + abs(aDelay)), 2.0);
+    newPosition.x += fallingTime * aDelay * 2.0;
 
     vec4 modelPosition = modelMatrix * vec4(newPosition, 1.0);
     vec4 viewPosition = viewMatrix * modelPosition;
@@ -29,11 +34,12 @@ void main() {
     /**
     * Size
     */
-    float scaleTime = clamp(map(mod(uTime, 3.0) - aDelay, 0.0, 0.6, 0.0, 1.0), 0.0, 1.0) * 2.0;
-    gl_PointSize = (1.0 / - viewPosition.z) * uResolution.y * uSize * aScale * scaleTime;
+    float scale = uSize * aScale * (abs(sin((fallingTime + (direction.x * direction.y * direction.z)) * 10.0)) * 0.5 + 0.5);
+    gl_PointSize = (1.0 / - viewPosition.z) * uResolution.y * scale;
 
-    /*
-    * Delay
+    /**
+    * Varyings
     */
     vDelay = aDelay;
+
 }

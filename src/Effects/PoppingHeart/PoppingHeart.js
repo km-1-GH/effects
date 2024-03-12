@@ -117,7 +117,7 @@ export default class PoppingHeart {
     }
 
     setupGUI(pane) {
-        const folder = pane.addFolder({ title: 'PoppingHeart' })
+        const folder = pane.addFolder({ title: 'PoppingHeart', expanded: false })
 
         folder.addButton({ title: 'Run' }).on('click', () => { 
             if (!this.active) this.activate() 
