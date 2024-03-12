@@ -59,9 +59,9 @@ export default class Confetti {
             const i3 = i * 3
 
             // position
-            positions[i3 + 0] = (Math.random() * 2 - 1) * 0.03
-            positions[i3 + 1] = Math.random() * 0.05 //上方向のみ
-            positions[i3 + 2] = (Math.random() * 2 - 1) * 0.01
+            positions[i3 + 0] = (Math.random() * 2 - 1) * 0.02
+            positions[i3 + 1] = Math.random() * 0.05 + 0.01 //上方向のみ
+            positions[i3 + 2] = (Math.random() * 2 - 1) * 0.02
             // scale
             scales[i] = 0.5 + Math.random() * 0.5
             // delay
