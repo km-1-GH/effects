@@ -156,16 +156,14 @@ items.poppingHeart = new PoppingHeart(
 items.confetti = new Confetti(
     {
         scene: scene,
-        position: new THREE.Vector3(0, 1, 2),
+        position: new THREE.Vector3(0, 1, 0),
         count: 60,
-        speed: 1,
+        duration: 5,
         size: 1,
-        height: 1,
         resolution: sizes.resolution,
     },
     pane
 )
-
 
 /**
  * Model

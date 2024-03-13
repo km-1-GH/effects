@@ -112,7 +112,7 @@ export default class PoppingHeart {
 
         if (this.elapsed > 3) {
             this.active = false
-            this.visible = false
+            this.anchor.visible = false
         }
     }
 
