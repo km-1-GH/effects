@@ -53,19 +53,17 @@ export default class HologramMaterial {
     }
 
     setupGUI(pane) {
-        const folder = pane.addFolder({title: 'Hologram Material', expanded: false})
-
-        folder.addButton({ title: 'Activate' }).on('click', () => { 
+        pane.addButton({ title: 'Activate' }).on('click', () => { 
             if (!this.active) this.activate() 
         })
 
-        folder.addButton({ title: 'Stop' }).on('click', () => { 
+        pane.addButton({ title: 'Stop' }).on('click', () => { 
             if (this.active) this.stop() 
         })
 
-        folder.addBinding(this.material.uniforms.uSpeed, 'value', {min: 0.1, max: 5, step: 0.01, label: 'Speed'})
+        pane.addBinding(this.material.uniforms.uSpeed, 'value', {min: 0.1, max: 5, step: 0.01, label: 'Speed'})
 
-        folder.addBinding(
+        pane.addBinding(
             this.material.uniforms.uColor, 
             'value', 
             {color: {type: 'float'}, label: 'Color'}

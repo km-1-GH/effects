@@ -73,54 +73,58 @@ const pane = dev.getPane()
 // smokePuff
 items.smokePuff = new SmokeParticle(
     {
-        scene: scene,
+        parent: scene,
         position: new THREE.Vector3(-3, 1, 0),
         pixelRatio: Math.min(window.devicePixelRatio, 2),
         size: 1,
         scale: 5,
         resolution: sizes.resolution,
     },
-    pane
+    pane.addFolder({ title: 'Smoke Puff', expanded: false, index: 1 })
 )
 
 // smokeCoffee
 items.smokeCoffee = new SmokeCoffee(
     {
-        scene: scene,
+        parent: scene,
         scale: 1,
         speed: 1,
         position: new THREE.Vector3(0, 1.83, 0),
     },
-    pane
+    pane.addFolder({ title: 'Smoke Coffee', expanded: false, index: 2 })
 )
 
 // fire
 items.fire = new Fire(
     {
-        scene: scene,
+        parent: scene,
         position: new THREE.Vector3(3, 1, 3),
         resolution: sizes.resolution,
         size: 0.7,
         scale: 0.7,
     },
-    pane
+    pane.addFolder({ title: 'Fire', expanded: false, index: 3 })
 )
 
 //flame
 items.flame = new Flame(
     {
-        scene: scene,
+        parent: scene,
         position: new THREE.Vector3(-3, 0.2, 5),
         resolution: sizes.resolution,
         size: 0.5,
         scale: 0.5,
         count: 3,
     },
-    pane
+    pane.addFolder({ title: 'Flame', expanded: false, index: 4 })
 )
 
 // Hologram Material & Rainbow Bubble
-const hologramMaterial = new HologramMaterial({ color: new THREE.Color(0xffffff) } , pane)
+const hologramMaterial = new HologramMaterial({
+     color: new THREE.Color(0xffffff) 
+    }, 
+    pane.addFolder({ title: 'Hologram Material', expanded: false, index: 5 })
+)
 // Suzanne
 let suzanne = null
 let suzanneRainbowBubble
@@ -134,14 +138,17 @@ gltfLoader.load('./suzanne.glb', (gltf) => {
         suzanne.scale.setScalar(0.7)
         scene.add(suzanne)
 
-        suzanneRainbowBubble = new RainbowBubble({ scene: suzanne, scale: 1.6 }, pane)
+        suzanneRainbowBubble = new RainbowBubble(
+            { parent: suzanne, scale: 1.6 }, 
+            pane.addFolder({ title: 'Rainbow Bubble', expanded: false, index: 6 })
+        )
     }
 )
 
 // Popping Heart
 items.poppingHeart = new PoppingHeart(
     {
-        scene: scene,
+        parent: scene,
         position: new THREE.Vector3(0, 2, 0),
         count: 7,
         speed: 1.5,
@@ -149,20 +156,20 @@ items.poppingHeart = new PoppingHeart(
         height: 1,
         resolution: sizes.resolution,
     },
-    pane
+    pane.addFolder({ title: 'Popping Heart', expanded: false, index: 7})
 )
 
 // Confetti
 items.confetti = new Confetti(
     {
-        scene: scene,
+        parent: scene,
         position: new THREE.Vector3(0, 1, 0),
         count: 60,
         duration: 5,
         size: 1,
         resolution: sizes.resolution,
     },
-    pane
+    pane.addFolder({ title: 'Confetti', expanded: false, index: 8})
 )
 
 /**

@@ -6,28 +6,28 @@ import noise from '/perlin.png'
 /**
  * @module SmokeParticle
  * @param {Object} param - Particle Parameters
- * @param {THREE.Scene} param.scene - Parent Mesh to add
+ * @param {THREE.Scene | THREE.Mesh} param.parent - Parent Mesh or scene to add
  * @param {number} [param.pixelRatio] - window.devicePixelRatio
+ * @param {THREE.Vector2} [param.resolution] - Resolution
  * @param {THREE.Vector3} [param.position] - default Position
-* @param {number} [param.speed] - Animation Speed
+ * @param {number} [param.scale] - Mesh Scale
+ * @param {number} [param.speed] - Animation Speed
  * @param {number} [param.size] - Particle Size Scale
- * @param {number} [param.scale] - Mesh Destination Scale
  * @param {String} [param.color1] - Main Color
  * @param {String} [param.color2] - Rim Color
- * @param {THREE.Vector2} [param.resolution] - Resolution
  * @param {Pane} [tweakpane] - tweakpane instance
  */
 export default class SmokeParticle {
     constructor(param, pane=null) {
-        this.scene = param.scene
+        this.parent = param.parent
         this.pixelRatio = param.pixelRatio || 1
+        this.resolution = param.resolution || new THREE.Vector2(1000, 750)
         this.position = param.position || new THREE.Vector3(0, 0, 0)
+        this.scale = param.scale || 1
         this.speed = param.speed || 1
         this.size = param.size || 1
-        this.destScale = param.scale || 1
         const color1 = param.color1 || 0xf7feff
         const color2 = param.color2 || 0xf8f8f8
-        this.resolution = param.resolution || new THREE.Vector2(1000, 750)
         
         this.noiseTex = new THREE.TextureLoader().load(noise)
         this.colors = [
@@ -37,14 +37,14 @@ export default class SmokeParticle {
         this.PARTICLE_SIZE = 1 * param.size
 
         this.anchor
-        this.create(this.scene)
+        this.create(this.parent)
 
         this.elapsed = 0
 
         if (pane) this.setupGUI(pane)
     }
 
-    create(scene) {
+    create(parent) {
         /**
          * geometry
          */
@@ -124,9 +124,9 @@ export default class SmokeParticle {
          */
         this.anchor = new THREE.Points(geometry, material)
         this.anchor.position.copy(this.position)
-        this.anchor.visible = false  /////////////
+        this.anchor.visible = false
         this.anchor.userData.state = 'off'
-        scene.add(this.anchor)
+        parent.add(this.anchor)
     }
 
     resize(resolution) {
@@ -137,8 +137,8 @@ export default class SmokeParticle {
     activate(position=this.position, addScale=0, speed=this.speed) {
         this.anchor.position.set(position.x, position.y, position.z)
         this.anchor.rotation.z = Math.random() * Math.PI * 2
-        this.anchor.scale.setScalar(this.destScale + addScale)
-        this.anchor.material.uniforms.uMeshScale.value = this.destScale + addScale
+        this.anchor.scale.setScalar(this.scale + addScale)
+        this.anchor.material.uniforms.uMeshScale.value = this.scale + addScale
         this.speed = speed
 
         this.elapsed = 0
@@ -161,20 +161,22 @@ export default class SmokeParticle {
     }
 
     setupGUI(pane) {
-        const folder = pane.addFolder({ title: 'Smoke Puff', expanded: false})
-
-        folder.addButton({ title: 'Run' }).on('click', () => { 
+        pane.addButton({ title: 'Activate' }).on('click', () => { 
             if (this.anchor.userData.state !== 'on') this.activate() 
         })
 
-        folder.addBinding(this, 'destScale', { min: 0, max: 10 })
+        const tabs = pane.addTab({ pages: [ { title: 'Mesh'}, {title: 'Shader'} ] })
+        const MeshParam = tabs.pages[0]
+        const ShaderParam = tabs.pages[1]
 
-        folder.addBinding(this, 'speed', { min: 0, max: 5 })
+        MeshParam.addBinding(this, 'scale', { min: 0.1, max: 10 })
 
-        folder.addBinding(this, 'size', { min: 0, max: 10 })
-        .on('change', value => { this.anchor.material.uniforms.uSize.value = this.PARTICLE_SIZE * value.value })
+        MeshParam.addBinding(this, 'speed', { min: 0.3, max: 2 })
 
-        folder.addBinding(
+        ShaderParam.addBinding(this, 'size', { min: 0.8, max: 1.5 })
+            .on('change', value => { this.anchor.material.uniforms.uSize.value = this.PARTICLE_SIZE * value.value })
+
+        ShaderParam.addBinding(
             this.anchor.material.uniforms.uColor1, 'value', 
             {color: {type: 'float'}, label: 'Main color'}
         ).on('change', value => {
@@ -183,7 +185,7 @@ export default class SmokeParticle {
             console.log(`0x${this.anchor.material.uniforms.uColor1.value.getHexString()}`)
         })
 
-        folder.addBinding(
+        ShaderParam.addBinding(
             this.anchor.material.uniforms.uColor2, 
             'value', 
             {color: {type: 'float'}, label: 'Rim color'}

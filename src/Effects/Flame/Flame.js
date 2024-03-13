@@ -10,34 +10,34 @@ import flame4 from '/flame_04.png'
 /**
  * @module Flame
  * @param {Object} param - Particle Parameters
- * @param {THREE.Scene} param.scene - Parent Mesh to add
+ * @param {THREE.Scene | THREE.Mesh} param.parent - Parent Mesh to add
  * @param {number} param.pixelRatio - window.devicePixelRatio
+ * @param {THREE.Vector2} [param.resolution=new THREE.Vector2(1000, 750)] - canvas' Resolution
  * @param {THREE.Vector3} param.position - default Position
- * @param {number} param.particleCount - Number of Particles
- * @param {number} param.size - Particle Size Scale
  * @param {number} param.scale - Mesh Scale
  * @param {number} param.speed - Animation Speed
+ * @param {number} param.particleCount - Number of Particles
+ * @param {number} param.size - Partic Size Scale
  * @param {String} param.color1 - Main Color
  * @param {String} param.color2 - Rim Color
- * @param {THREE.Vector2} [param.resolution=new THREE.Vector2(1000, 750)] - canvas' Resolution
  * @param {number} param.count - Number of Flames
  * @param {Pane} tweakpane - tweakpane instance
  */
 
 export default class Flame {
     constructor(param, pane = null) {
-        this.scene = param.scene
+        this.parent = param.parent
         this.pixelRatio = param.pixelRatio || 1
+        this.resolution = param.resolution || new THREE.Vector2(1000, 750)
         this.position = param.position || new THREE.Vector3(0, 0, 0)
+        this.scale = param.scale || 1
+        this.speed = param.speed || 0.5
         this.particleCount = param.particleCount || 100
         this.size = param.size || 1
-        this.scale = param.scale || 1
         const color1 = param.color1 || 0xe38500
         const color2 = param.color2 || 0xb08100
-        this.speed = param.speed || 0.5
-        this.resolution = param.resolution || new THREE.Vector2(1000, 750)
         this.count = param.count || 1
-        
+
         this.color1 = new THREE.Color(color1),
         this.color2 = new THREE.Color(color2),
         this.PARTICLE_SIZE = 3.4 * this.size
@@ -45,7 +45,7 @@ export default class Flame {
         this.flameTex = new THREE.TextureLoader().load(flame4)
 
         this.anchor
-        this.create(this.scene)
+        this.create(this.parent)
 
         this.elapsed = 0
         this.active = false
@@ -53,7 +53,7 @@ export default class Flame {
         if (pane) this.setupGUI(pane)
     }
 
-    create(scene) {
+    create(parent) {
         /**
          * geometry
          */
@@ -116,7 +116,7 @@ export default class Flame {
         this.anchor.scale.setScalar(this.scale)
         this.anchor.visible = false
         this.anchor.userData.state = 'off'
-        scene.add(this.anchor)
+        parent.add(this.anchor)
 
         if (this.count > 1) {
             for (let i = 0; i < this.count - 1; i++) {
@@ -154,15 +154,17 @@ export default class Flame {
     }
 
     setupGUI(pane) {
-        const folder = pane.addFolder({ title: 'Flame', expanded: false})
-
-        folder.addButton({ title: 'Activate' }).on('click', () => { 
+        pane.addButton({ title: 'Activate' }).on('click', () => { 
             if (!this.active) this.activate() 
         })
 
-        folder.addButton({ title: 'Stop' }).on('click', () => { 
+        pane.addButton({ title: 'Stop' }).on('click', () => { 
             if (this.active) this.stop() 
         })
+
+        const tabs = pane.addTab({ pages: [ { title: 'Mesh'}, {title: 'Shader'} ] })
+        const MeshParam = tabs.pages[0]
+        const ShaderParam = tabs.pages[1]
 
         const sampleTextures = {
             flame1: new THREE.TextureLoader().load(flame1),
@@ -175,7 +177,7 @@ export default class Flame {
             sampleTextures[key].flipY = false
         })
 
-        folder.addBlade({
+        ShaderParam.addBlade({
             view: 'list',
             label: 'Sample Textures',
             options: [
@@ -188,7 +190,7 @@ export default class Flame {
         })
         .on('change', (value) => { this.anchor.material.uniforms.uFlameTex.value = value.value })
 
-        folder.addBinding(
+        ShaderParam.addBinding(
             this.anchor.material.uniforms.uColor1, 'value', 
             {color: {type: 'float'}, label: 'light color'}
         ).on('change', value => {
@@ -197,7 +199,7 @@ export default class Flame {
             console.log(`0x${this.anchor.material.uniforms.uColor1.value.getHexString()}`)
         })
 
-        folder.addBinding(
+        ShaderParam.addBinding(
             this.anchor.material.uniforms.uColor2, 
             'value', 
             {color: {type: 'float'}, label: 'dark color'}
@@ -207,12 +209,12 @@ export default class Flame {
             console.log(`0x${this.anchor.material.uniforms.uColor2.value.getHexString()}`)
         })
 
-        folder.addBinding(this, 'speed', {min: 0.1, max: 2})
+        MeshParam.addBinding(this, 'speed', {min: 0.1, max: 2})
 
-        folder.addBinding(this, 'scale', {min: 0.1, max: 5})
+        MeshParam.addBinding(this, 'scale', {min: 0.1, max: 5})
             .on('change', value => { this.anchor.scale.setScalar(value.value) })
 
-        folder.addBinding(this.anchor.material.uniforms.uSize, 'value', { label: 'size', min: 0.1, max: 20})
+        ShaderParam.addBinding(this, 'size', { min: 0.1, max: 20})
+            .on('change', () => { this.anchor.material.uniforms.uSize.value = this.PARTICLE_SIZE * this.size })
     }
-
  }

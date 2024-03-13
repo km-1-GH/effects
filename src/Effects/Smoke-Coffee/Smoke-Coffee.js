@@ -6,22 +6,22 @@ import noise from '/perlin.png'
 /**
  * @module SmokeCoffee
  * @param {Object} param - Parameters
- * @param {THREE.Scene | THREE.Mesh} param.scene - The scene or mesh to add the smoke to
- * @param {THREE.Texture} param.texture - The path to the noise texture to use for the smoke 
- * @param {THREE.Color} param.color - The color of the smoke
+ * @param {THREE.Scene | THREE.Mesh} param.parent - The scene or mesh to add the smoke to
+ * @param {THREE.Vector3} param.position - The position of the smoke
  * @param {Number} param.scale - The scale of the smoke
  * @param {Number} param.speed - The speed of animation
- * @param {THREE.Vector3} param.position - The position of the smoke
+ * @param {THREE.Color} param.color - The color of the smoke
+ * @param {THREE.Texture} param.texture - The path to the noise texture to use for the smoke 
  * @param {Pane} param.pane - The pane instance
  */
 
 export default class SmokeCoffee {
     constructor(param, pane=null) {
-        this.scene = param.scene
-        this.color = param.color || new THREE.Color(0xffffff)
+        this.parent = param.parent
+        this.position = param.position || new THREE.Vector3(0, 0, 0)
         this.scale = param.scale || 1
         this.speed = param.speed || 1
-        this.position = param.position || new THREE.Vector3(0, 0, 0)
+        this.color = param.color || new THREE.Color(0xffffff)
         this.noiseTex = param.noise || new THREE.TextureLoader().load(noise)
         this.noiseTex.wrapS = THREE.RepeatWrapping
         this.noiseTex.wrapT = THREE.RepeatWrapping
@@ -50,13 +50,12 @@ export default class SmokeCoffee {
                 uColor: { value: this.color },
             },
             depthWrite: false,
-            // wireframe: true,
         })
 
         this.anchor = new THREE.Mesh(geometry, material)
         this.anchor.scale.setScalar(this.scale)
         this.anchor.position.copy(this.position)
-        this.scene.add(this.anchor)
+        this.parent.add(this.anchor)
         this.anchor.visible = false
     }
 
@@ -80,22 +79,24 @@ export default class SmokeCoffee {
     }
 
     setupGUI(pane) {
-        const folder = pane.addFolder({title: 'Smoke Coffee', expanded: false})
-
-        folder.addButton({ title: 'Activate' }).on('click', () => { 
+        pane.addButton({ title: 'Activate' }).on('click', () => { 
             if (!this.active) this.activate() 
         })
 
-        folder.addButton({ title: 'Stop' }).on('click', () => { 
+        pane.addButton({ title: 'Stop' }).on('click', () => { 
             if (this.active) this.stop() 
         })
 
-        folder.addBinding(this, 'scale', { min: 0, max: 10 })
+        const tabs = pane.addTab({ pages: [ { title: 'Mesh'}, {title: 'Shader'} ] })
+        const MeshParam = tabs.pages[0]
+        const ShaderParam = tabs.pages[1]
+
+        MeshParam.addBinding(this, 'scale', { min: 0, max: 10 })
             .on('change', value => { this.anchor.scale.setScalar(value.value) })
 
-        folder.addBinding(this, 'speed', { min: 0, max: 20 })
+        MeshParam.addBinding(this, 'speed', { min: 0, max: 20 })
 
-        folder.addBinding(
+        ShaderParam.addBinding(
             this.anchor.material.uniforms.uColor, 
             'value', 
             {color: {type: 'float'}, label: 'Color'}

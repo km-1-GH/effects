@@ -6,9 +6,9 @@ import noise from '/perlin.png'
 /**
  * @module RainbowBubble
  * @param {Object} param - Parameters
- * @param {THREE.Scene | THREE.Mesh} param.scene - The scene or mesh to add the mesh to
- * @param {Number} param.scale - The scale of the mesh
+ * @param {THREE.Scene | THREE.Mesh} param.parent - The scene or mesh to add the mesh to
  * @param {THREE.Vector3} param.position - The position of the mesh
+ * @param {Number} param.scale - The scale of the mesh
  * @param {Number} param.hueOffset - The hue offset
  * @param {Number} param.hueRange - The hue range
  * @param {THREE.Texture} param.texture - The noise texture
@@ -17,9 +17,9 @@ import noise from '/perlin.png'
 
 export default class RainbowBubble {
     constructor(param, pane=null) {
-        this.scene = param.scene
-        this.scale = param.scale || 1
+        this.parent = param.parent
         this.position = param.position || new THREE.Vector3(0, 0, 0)
+        this.scale = param.scale || 1
         this.hueOffset = param.hueOffset || 4.51
         this.hueRange = param.hueRange || 0.2
         this.noiseTex = param.texture || new THREE.TextureLoader().load(noise)
@@ -54,7 +54,7 @@ export default class RainbowBubble {
         this.anchor.scale.setScalar(this.scale)
         this.anchor.position.copy(this.position)
         this.anchor.visible = false
-        this.scene.add(this.anchor)
+        this.parent.add(this.anchor)
     }
 
     activate(position=this.position) {
@@ -92,22 +92,24 @@ export default class RainbowBubble {
     }
 
     setupGUI(pane) {
-        const folder = pane.addFolder({title: 'Rainbow Bubble', expanded: false})
-
-        folder.addButton({ title: 'Activate' }).on('click', () => { 
+        pane.addButton({ title: 'Activate' }).on('click', () => { 
             if (this.state === 'off') this.activate() 
         })
 
-        folder.addButton({ title: 'Stop' }).on('click', () => { 
+        pane.addButton({ title: 'Stop' }).on('click', () => { 
             if (this.state === 'on') this.pop() 
         })
 
-        folder.addBinding(this, 'scale', {min: 0, max: 5, step: 0.01, label: 'Scale'})
+        const tabs = pane.addTab({ pages: [ { title: 'Mesh'}, {title: 'Shader'} ] })
+        const MeshParam = tabs.pages[0]
+        const ShaderParam = tabs.pages[1]
+
+        MeshParam.addBinding(this, 'scale', {min: 0, max: 5, step: 0.01, label: 'Scale'})
             .on('change', value => this.anchor.scale.setScalar(value.value))
 
-        folder.addBinding(this.anchor.material.uniforms.uHueOffset, 'value', {min: 0, max: Math.PI * 2, step: 0.01, label: 'Hue Offset'})
+        ShaderParam.addBinding(this.anchor.material.uniforms.uHueOffset, 'value', {min: 0, max: Math.PI * 2, step: 0.01, label: 'Hue Offset'})
 
-        folder.addBinding(this.anchor.material.uniforms.uHueRange, 'value', {min: 0, max: Math.PI, step: 0.01, label: 'Hue Range'})
+        ShaderParam.addBinding(this.anchor.material.uniforms.uHueRange, 'value', {min: 0, max: Math.PI, step: 0.01, label: 'Hue Range'})
 
     }
 }
