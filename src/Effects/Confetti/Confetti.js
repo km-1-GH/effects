@@ -113,7 +113,8 @@ export default class Confetti {
         parent.add(this.anchor)
     }
 
-    activate() {
+    activate(position=this.position) {
+        this.anchor.position.copy(position)
         this.active = true
         this.anchor.visible = true
         this.elapsed = 0
