@@ -41,7 +41,6 @@ void main() {
     * Size
     */
     float scale = uSize * aScale * (abs(sin((fallingTime + randomByPos) * 10.0)) * 0.5 + 0.5);
-    // float scale = uSize * aScale * (abs(sin((fallingTime + aRandom) * 10.0)) * 0.5 + 0.5);
     gl_PointSize = (1.0 / - viewPosition.z) * uResolution.y * scale;
 
     /**
