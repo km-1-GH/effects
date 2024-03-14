@@ -7,11 +7,11 @@ import fragmentShader from './shader/fragment.glsl'
  * @param {Object} param - Parameters
  * @param {THREE.Scene | THREE.Mesh} param.scene - The scene or mesh to add the mesh to
  * @param {THREE.Color} param.color - The color of the mesh
- * @param {Pane} param.pane - The pane instance
+ * @param {Pane} param.gui - The pane instance
  */
 
 export default class HologramMaterial {
-    constructor(param, pane=null) {
+    constructor(param) {
         this.material = new THREE.ShaderMaterial({
             transparent: true,
             side: THREE.DoubleSide,
@@ -30,7 +30,7 @@ export default class HologramMaterial {
         this.active = false
         this.elapsed = 0
 
-        if (pane) this.setupGUI(pane)
+        if (param.gui) this.setupGUI(param.gui)
     }
 
     activate() {

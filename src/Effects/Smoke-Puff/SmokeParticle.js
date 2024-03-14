@@ -1,25 +1,25 @@
 import * as THREE from 'three'
-import particleVertex from './shader/vertex.glsl'
-import particleFragment from './shader/fragment.glsl'
+import vertexShader from './shader/vertex.glsl'
+import fragmentShader from './shader/fragment.glsl'
 import noise from '/perlin.png'
 
 /**
  * @module SmokeParticle
- * @param {Object} param - Particle Parameters
- * @param {THREE.Scene | THREE.Mesh} param.parent - Parent Mesh or scene to add
+ * @param {Object} [param] - Parameters
+ * @param {THREE.Scene | THREE.Mesh} [param.parent] - Parent Mesh to add
  * @param {number} [param.pixelRatio] - window.devicePixelRatio
- * @param {THREE.Vector2} [param.resolution] - Resolution
+ * @param {THREE.Vector2} [param.resolution] - THREE canvas Resolution
  * @param {THREE.Vector3} [param.position] - default Position
  * @param {number} [param.scale] - Mesh Scale
  * @param {number} [param.speed] - Animation Speed
  * @param {number} [param.size] - Particle Size Scale
  * @param {String} [param.color1] - Main Color
  * @param {String} [param.color2] - Rim Color
- * @param {Pane} [tweakpane] - tweakpane instance
+ * @param {Pane} [param.gui] - tweakpane instance
  */
 export default class SmokeParticle {
-    constructor(param, pane=null) {
-        this.parent = param.parent
+    constructor(param) {
+        this.parent = param.parent || null
         this.pixelRatio = param.pixelRatio || 1
         this.resolution = param.resolution || new THREE.Vector2(1000, 750)
         this.position = param.position || new THREE.Vector3(0, 0, 0)
@@ -30,30 +30,36 @@ export default class SmokeParticle {
         const color2 = param.color2 || 0xf8f8f8
         
         this.noiseTex = new THREE.TextureLoader().load(noise)
+        this.noiseTex.wrapS = this.noiseTex.wrapT = THREE.RepeatWrapping
         this.colors = [
             new THREE.Color(color1),
             new THREE.Color(color2),
         ]
-        this.PARTICLE_SIZE = 1 * param.size
+        this.PARTICLE_SIZE = 4 * this.size
 
-        this.anchor
-        this.create(this.parent)
+        this.object
+        this.create()
 
         this.elapsed = 0
 
-        if (pane) this.setupGUI(pane)
+        if (param.gui) this.setupGUI(param.gui)
     }
 
-    create(parent) {
+    resize(resolution) {
+        this.resolution = resolution
+        this.object.material.uniforms.uResolution.value.set(this.resolution.x, this.resolution.y)
+    }
+
+    create() {
         /**
          * geometry
          */
-        const SMALL_R = 0.05
-        const MEDIUM_R = 0.15
-        const LARGE_R = 0.18
-        const SMALL_COUNT = 20
-        const MEDIUM_COUNT = 24
-        const LARGE_COUNT = 32
+        const SMALL_R = 0.1
+        const MEDIUM_R = 0.3
+        const LARGE_R = 0.36
+        const SMALL_COUNT = 11
+        const MEDIUM_COUNT = 31
+        const LARGE_COUNT = 41
 
         const paramArr = []
 
@@ -90,7 +96,7 @@ export default class SmokeParticle {
             positions[index + 2] = paramArr[i].z
 
             // scale and delay
-            scale[i] = Math.random() * 0.6 + 0.4 // 0.4 ~ 1.0
+            scale[i] = Math.random() * 0.4 + 0.6 // 0.6 ~ 1.0
             delay[i] = Math.random() * 0.8
         }
 
@@ -114,55 +120,51 @@ export default class SmokeParticle {
         const material = new THREE.ShaderMaterial({
             transparent: true,
             depthWrite: false,
-            vertexShader: particleVertex,
-            fragmentShader: particleFragment,
             uniforms: uniforms,
+            vertexShader,
+            fragmentShader,
         })
 
         /**
-         * anchor(Points)
+         * object(Points)
          */
-        this.anchor = new THREE.Points(geometry, material)
-        this.anchor.position.copy(this.position)
-        this.anchor.visible = false
-        this.anchor.userData.state = 'off'
-        parent.add(this.anchor)
-    }
+        this.object = new THREE.Points(geometry, material)
+        this.object.position.copy(this.position)
+        this.object.visible = false
+        this.state = 'off'
 
-    resize(resolution) {
-        this.resolution = resolution
-        this.anchor.material.uniforms.uResolution.value.set(this.resolution.x, this.resolution.y)
+        if (this.parent) this.parent.add(this.object)
     }
 
     activate(position=this.position, addScale=0, speed=this.speed) {
-        this.anchor.position.set(position.x, position.y, position.z)
-        this.anchor.rotation.z = Math.random() * Math.PI * 2
-        this.anchor.scale.setScalar(this.scale + addScale)
-        this.anchor.material.uniforms.uMeshScale.value = this.scale + addScale
+        this.object.position.set(position.x, position.y, position.z)
+        this.object.rotation.z = Math.random() * Math.PI * 2
+        this.object.scale.setScalar(this.scale + addScale)
+        this.object.material.uniforms.uMeshScale.value = this.scale + addScale
         this.speed = speed
 
         this.elapsed = 0
-        this.anchor.userData.state = 'on'
-        this.anchor.visible = true
+        this.state = 'on'
+        this.object.visible = true
     }
 
     update(delta) {
-        if (this.anchor.userData.state !== 'on') return ////////////
+        if (this.state !== 'on') return ////////////
 
         this.elapsed += delta * 0.5 * this.speed
-        this.anchor.material.uniforms.uTime.value = this.elapsed
+        this.object.material.uniforms.uTime.value = this.elapsed
 
         if (this.elapsed >= 1) {
             this.elapsed = 0
-            this.anchor.userData.state = 'done'
-            this.anchor.visible = false  ////////////////////
+            this.state = 'done'
+            this.object.visible = false  ////////////////////
             return
         }
     }
 
     setupGUI(pane) {
         pane.addButton({ title: 'Activate' }).on('click', () => { 
-            if (this.anchor.userData.state !== 'on') this.activate() 
+            if (this.state !== 'on') this.activate() 
         })
 
         const tabs = pane.addTab({ pages: [ { title: 'Mesh'}, {title: 'Shader'} ] })
@@ -174,25 +176,25 @@ export default class SmokeParticle {
         MeshParam.addBinding(this, 'speed', { min: 0.3, max: 2 })
 
         ShaderParam.addBinding(this, 'size', { min: 0.8, max: 1.5 })
-            .on('change', value => { this.anchor.material.uniforms.uSize.value = this.PARTICLE_SIZE * value.value })
+            .on('change', () => { this.object.material.uniforms.uSize.value = this.PARTICLE_SIZE * this.size })
 
         ShaderParam.addBinding(
-            this.anchor.material.uniforms.uColor1, 'value', 
+            this.object.material.uniforms.uColor1, 'value', 
             {color: {type: 'float'}, label: 'Main color'}
         ).on('change', value => {
-            this.anchor.material.uniforms.uColor1.value = new THREE.Color(value.value.r, value.value.g, value.value.b)
+            this.object.material.uniforms.uColor1.value = new THREE.Color(value.value.r, value.value.g, value.value.b)
             .convertLinearToSRGB()
-            console.log(`0x${this.anchor.material.uniforms.uColor1.value.getHexString()}`)
+            console.log(`0x${this.object.material.uniforms.uColor1.value.getHexString()}`)
         })
 
         ShaderParam.addBinding(
-            this.anchor.material.uniforms.uColor2, 
+            this.object.material.uniforms.uColor2, 
             'value', 
             {color: {type: 'float'}, label: 'Rim color'}
         ).on('change', value => {
-            this.anchor.material.uniforms.uColor2.value = new THREE.Color(value.value.r, value.value.g, value.value.b)
+            this.object.material.uniforms.uColor2.value = new THREE.Color(value.value.r, value.value.g, value.value.b)
             .convertLinearToSRGB()
-            console.log(`0x${this.anchor.material.uniforms.uColor2.value.getHexString()}`)
+            console.log(`0x${this.object.material.uniforms.uColor2.value.getHexString()}`)
         })
     }
  }

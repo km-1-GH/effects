@@ -5,22 +5,22 @@ import noise from '/perlin.png'
 
 /**
  * @module RainbowBubble
- * @param {Object} param - Parameters
- * @param {THREE.Scene | THREE.Mesh} param.parent - The scene or mesh to add the mesh to
- * @param {THREE.Vector3} param.position - The position of the mesh
- * @param {Number} param.scale - The scale of the mesh
- * @param {Number} param.hueOffset - The hue offset
- * @param {Number} param.hueRange - The hue range
- * @param {THREE.Texture} param.texture - The noise texture
- * @param {Pane} param.pane - The pane instance
+ * @param {Object} [param] - Particle Parameters
+ * @param {THREE.Scene | THREE.Mesh} [param.parent] - Parent Mesh to add
+ * @param {THREE.Vector3} [param.position] - The position of the mesh
+ * @param {Number} [param.scale] - The scale of the mesh
+ * @param {Number} [param.hueOffset] - The hue offset
+ * @param {Number} [param.hueRange] - The hue range
+ * @param {THREE.Texture} [param.texture] - The noise texture
+ * @param {Pane} [param.pane] - The pane instance
  */
 
 export default class RainbowBubble {
-    constructor(param, pane=null) {
-        this.parent = param.parent
+    constructor(param) {
+        this.parent = param.parent || null
         this.position = param.position || new THREE.Vector3(0, 0, 0)
         this.scale = param.scale || 1
-        this.hueOffset = param.hueOffset || 4.51
+        this.hueOffset = param.hueOffset || 0.51
         this.hueRange = param.hueRange || 0.2
         this.noiseTex = param.texture || new THREE.TextureLoader().load(noise)
 
@@ -29,11 +29,11 @@ export default class RainbowBubble {
         this.state = 'off'
         this.elapsed = 0
 
-        if (pane) this.setupGUI(pane)
+        if (param.pane) this.setupGUI(param.pane)
     }
 
     create() {
-        const geometry = new THREE.SphereGeometry(1, 32, 32)
+        const geometry = new THREE.SphereGeometry(1.5, 32, 32)
         const material = new THREE.ShaderMaterial({
             transparent: true,
             side: THREE.DoubleSide,
@@ -50,19 +50,20 @@ export default class RainbowBubble {
             },
         })
 
-        this.anchor = new THREE.Mesh(geometry, material)
-        this.anchor.scale.setScalar(this.scale)
-        this.anchor.position.copy(this.position)
-        this.anchor.visible = false
-        this.parent.add(this.anchor)
+        this.object = new THREE.Mesh(geometry, material)
+        this.object.scale.setScalar(this.scale)
+        this.object.position.copy(this.position)
+        this.object.visible = false
+
+        if (this.parent) this.parent.add(this.object)
     }
 
     activate(position=this.position) {
-        this.anchor.position.copy(position)
+        this.object.position.copy(position)
         this.elapsed = 0
         this.state = 'on'
-        this.anchor.visible = true
-        this.anchor.material.uniforms.uPopTime.value = 0
+        this.object.visible = true
+        this.object.material.uniforms.uPopTime.value = 0
     }
 
     pop() {
@@ -72,8 +73,8 @@ export default class RainbowBubble {
 
     stop() {
         this.state = 'off'
-        this.anchor.visible = false
-        this.anchor.material.uniforms.uPopTime.value = 0
+        this.object.visible = false
+        this.object.material.uniforms.uPopTime.value = 0
         this.elapsed = 0
     }
 
@@ -82,13 +83,13 @@ export default class RainbowBubble {
 
         if (this.state === 'pop') {
             this.elapsed += delta * 5
-            this.anchor.material.uniforms.uPopTime.value = this.elapsed
+            this.object.material.uniforms.uPopTime.value = this.elapsed
             if (this.elapsed > 1) this.stop()
             return
         }
 
         this.elapsed += delta
-        this.anchor.material.uniforms.uTime.value = this.elapsed
+        this.object.material.uniforms.uTime.value = this.elapsed
     }
 
     setupGUI(pane) {
@@ -104,12 +105,13 @@ export default class RainbowBubble {
         const MeshParam = tabs.pages[0]
         const ShaderParam = tabs.pages[1]
 
-        MeshParam.addBinding(this, 'scale', {min: 0, max: 5, step: 0.01, label: 'Scale'})
-            .on('change', value => this.anchor.scale.setScalar(value.value))
+        MeshParam.addBinding(this, 'scale', {min: 0, max: 5 })
+            .on('change', () => this.object.scale.setScalar(this.scale))
 
-        ShaderParam.addBinding(this.anchor.material.uniforms.uHueOffset, 'value', {min: 0, max: Math.PI * 2, step: 0.01, label: 'Hue Offset'})
+        ShaderParam.addBinding(this, 'hueOffset', {min: 0, max: 1, step: 0.01 })
+            .on('change', () => this.object.material.uniforms.uHueOffset.value = this.hueOffset)
 
-        ShaderParam.addBinding(this.anchor.material.uniforms.uHueRange, 'value', {min: 0, max: Math.PI, step: 0.01, label: 'Hue Range'})
-
+        ShaderParam.addBinding(this, 'hueRange', {min: 0, max: 1 })
+            .on('change', () => this.object.material.uniforms.uHueRange.value = this.hueRange)
     }
 }

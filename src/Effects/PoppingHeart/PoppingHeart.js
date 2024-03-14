@@ -5,22 +5,22 @@ import heartTex from '/heart.png'
 
 /**
  * @module PoppingHeart
- * @param {Object} param - Particle Parameters
- * @param {THREE.Parent} param.parent - Parent Mesh to add
+ * @param {Object} [param] - Particle Parameters
+ * @param {THREE.Scene | THREE.Mesh} [param.parent] - Parent Mesh to add
  * @param {number} [param.pixelRatio] - window.devicePixelRatio
- * @param {THREE.Vector2} [param.resolution] - Resolution
+ * @param {THREE.Vector2} [param.resolution] - THREE canvas Resolution
  * @param {THREE.Vector3} [param.position] - default Position
  * @param {number} [param.speed] - Animation Speed
  * @param {number} [param.count] - Particle Count
  * @param {number} [param.size] - Particle Size Scale
  * @param {number} [param.height] - How high the Particle goes
  * @param {THREE.Texture} [param.texture] - Texture
- * @param {Pane} [tweakpane] - tweakpane instance
+ * @param {Pane} [param.gui] - tweakpane instance
  */
 
 export default class PoppingHeart {
-    constructor(param, pane=null) {
-        this.parent = param.parent
+    constructor(param) {
+        this.parent = param.parent || null
         this.pixelRatio = param.pixelRatio || 1
         this.resolution = param.resolution || new THREE.Vector2(1000, 750)
         this.position = param.position || new THREE.Vector3(0, 0, 0)
@@ -29,24 +29,24 @@ export default class PoppingHeart {
         this.size = param.size || 1
         this.height = param.height || 1
         this.texture = param.texture || new THREE.TextureLoader().load(heartTex)
-        this.PARTICLE_SIZE = 1 * param.size
+        this.PARTICLE_SIZE = 1 * this.size
 
         this.texture.flipY = false
-        this.anchor
-        this.create(this.parent)
+        this.object
+        this.create()
 
         this.elapsed = 0
         this.active = false
         
-        if (pane) this.setupGUI(pane)
+        if (param.gui) this.setupGUI(param.gui)
     }
 
     resize(resolution) {
         this.resolution = resolution
-        this.anchor.material.uniforms.uResolution.value.set(this.resolution.x, this.resolution.y)
+        this.object.material.uniforms.uResolution.value.set(this.resolution.x, this.resolution.y)
     }
 
-    create(parent) {
+    create() {
         /**
          * geometry
          */
@@ -89,19 +89,19 @@ export default class PoppingHeart {
         })
 
         /**
-         * anchor(Points)
+         * object(Points)
          */
-        this.anchor = new THREE.Points(geometry, material)
-        this.anchor.position.copy(this.position)
-        this.anchor.visible = false
-        parent.add(this.anchor)
+        this.object = new THREE.Points(geometry, material)
+        this.object.position.copy(this.position)
+        this.object.visible = false
 
+        if (this.parent) this.parent.add(this.object)
     }
 
     activate(position=this.position) {
-        this.anchor.position.copy(position)
+        this.object.position.copy(position)
         this.active = true
-        this.anchor.visible = true
+        this.object.visible = true
         this.elapsed = 0
     }
 
@@ -109,11 +109,11 @@ export default class PoppingHeart {
         if (!this.active) return
 
         this.elapsed  += delta * this.speed
-        this.anchor.material.uniforms.uTime.value = this.elapsed
+        this.object.material.uniforms.uTime.value = this.elapsed
 
         if (this.elapsed > 3) {
             this.active = false
-            this.anchor.visible = false
+            this.object.visible = false
         }
     }
 
@@ -128,20 +128,21 @@ export default class PoppingHeart {
 
         MeshParam.addBinding(this, 'speed', { min: 0, max: 3 })
 
-        ShaderParam.addBinding(this, 'count', { min: 0, max: 30, step: 1, label: 'count'})
+        ShaderParam.addBinding(this, 'count', { min: 0, max: 30, step: 1 })
             .on('change', () => {
                 this.active = false
-                this.parent.remove(this.anchor)
-                this.anchor.geometry.dispose()
-                this.anchor.material.dispose()
-                this.create(this.parent)
+                if (!this.parent) this.parent = this.object.parent || null
+                if (this.parent) this.parent.remove(this.object)
+                this.object.geometry.dispose()
+                this.object.material.dispose()
+                this.create()
             })
 
         ShaderParam.addBinding(this, 'size', { min: 0, max: 3})
-            .on('change', () => { this.anchor.material.uniforms.uSize.value = this.size })
+            .on('change', () => { this.object.material.uniforms.uSize.value = this.size })
 
         ShaderParam.addBinding(this, 'height', { min: 0, max: 3})
-            .on('change', () => { this.anchor.material.uniforms.uHeight.value = this.height })
+            .on('change', () => { this.object.material.uniforms.uHeight.value = this.height })
 
     }
 }

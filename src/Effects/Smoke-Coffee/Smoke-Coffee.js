@@ -5,19 +5,19 @@ import noise from '/perlin.png'
 
 /**
  * @module SmokeCoffee
- * @param {Object} param - Parameters
- * @param {THREE.Scene | THREE.Mesh} param.parent - The scene or mesh to add the smoke to
- * @param {THREE.Vector3} param.position - The position of the smoke
- * @param {Number} param.scale - The scale of the smoke
- * @param {Number} param.speed - The speed of animation
- * @param {THREE.Color} param.color - The color of the smoke
- * @param {THREE.Texture} param.texture - The path to the noise texture to use for the smoke 
- * @param {Pane} param.pane - The pane instance
+ * @param {Object} [param] - Parameters
+ * @param {THREE.Scene | THREE.Mesh} [param.parent] - Parent Mesh to add
+ * @param {THREE.Vector3} [param.position] - default Position
+ * @param {Number} [param.scale] - The scale of the mesh
+ * @param {Number} [param.speed] - The speed of animation
+ * @param {THREE.Color} [param.color] - The color of
+ * @param {THREE.Texture} [param.noise] - The noise texture
+ * @param {Pane} [param.gui] - tweakpane instance
  */
 
 export default class SmokeCoffee {
-    constructor(param, pane=null) {
-        this.parent = param.parent
+    constructor(param) {
+        this.parent = param.parent || null
         this.position = param.position || new THREE.Vector3(0, 0, 0)
         this.scale = param.scale || 1
         this.speed = param.speed || 1
@@ -31,7 +31,7 @@ export default class SmokeCoffee {
         this.active = false
         this.elapsed = 0
 
-        if (pane) this.setupGUI(pane)
+        if (param.gui) this.setupGUI(param.gui)
     }
 
     create() {
@@ -52,30 +52,31 @@ export default class SmokeCoffee {
             depthWrite: false,
         })
 
-        this.anchor = new THREE.Mesh(geometry, material)
-        this.anchor.scale.setScalar(this.scale)
-        this.anchor.position.copy(this.position)
-        this.parent.add(this.anchor)
-        this.anchor.visible = false
+        this.object = new THREE.Mesh(geometry, material)
+        this.object.scale.setScalar(this.scale)
+        this.object.position.copy(this.position)
+        this.object.visible = false
+
+        if (this.parent) this.parent.add(this.object)
     }
 
     activate(position=this.position) {
-        this.anchor.position.copy(position)
-        this.anchor.visible = true
-        this.elapsed = 0
+        this.object.position.copy(position)
         this.active = true
+        this.object.visible = true
+        this.elapsed = 0
     }
 
-    stop() {
-        this.anchor.visible = false
+    deactivate() {
         this.active = false
+        this.object.visible = false
     }
 
     update(delta, speed=this.speed) {
         if (!this.active) return
 
         this.elapsed += delta * speed
-        this.anchor.material.uniforms.uTime.value = this.elapsed
+        this.object.material.uniforms.uTime.value = this.elapsed
     }
 
     setupGUI(pane) {
@@ -84,7 +85,7 @@ export default class SmokeCoffee {
         })
 
         pane.addButton({ title: 'Stop' }).on('click', () => { 
-            if (this.active) this.stop() 
+            if (this.active) this.deactivate() 
         })
 
         const tabs = pane.addTab({ pages: [ { title: 'Mesh'}, {title: 'Shader'} ] })
@@ -92,18 +93,18 @@ export default class SmokeCoffee {
         const ShaderParam = tabs.pages[1]
 
         MeshParam.addBinding(this, 'scale', { min: 0, max: 10 })
-            .on('change', value => { this.anchor.scale.setScalar(value.value) })
+            .on('change', value => { this.object.scale.setScalar(value.value) })
 
         MeshParam.addBinding(this, 'speed', { min: 0, max: 20 })
 
         ShaderParam.addBinding(
-            this.anchor.material.uniforms.uColor, 
+            this.object.material.uniforms.uColor, 
             'value', 
             {color: {type: 'float'}, label: 'Color'}
         ).on('change', value => {
-            this.anchor.material.uniforms.uColor.value = new THREE.Color(value.value.r, value.value.g, value.value.b)
+            this.object.material.uniforms.uColor.value = new THREE.Color(value.value.r, value.value.g, value.value.b)
             .convertLinearToSRGB()
-            console.log(`0x${this.anchor.material.uniforms.uColor.value.getHexString()}`)
+            console.log(`0x${this.object.material.uniforms.uColor.value.getHexString()}`)
         })
     }
 }
