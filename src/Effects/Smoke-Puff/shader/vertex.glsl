@@ -13,7 +13,6 @@ void main()
     /**
     * Position
     */
-    // float expandVelocity = 1.0 - pow(1.0 - uTime, 2.0);
     float expandVelocity = sqrt(uTime);
     vec3 newPosition = position;
     newPosition += normalize(position) * expandVelocity * 1.0;

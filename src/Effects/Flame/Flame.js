@@ -26,7 +26,7 @@ import flame4 from '/flame_04.png'
 
 export default class Flame {
     constructor(param) {
-        this.parent = param.parent
+        this.parent = param.parent || null
         this.pixelRatio = param.pixelRatio || 1
         this.resolution = param.resolution || new THREE.Vector2(1000, 750)
         this.position = param.position || new THREE.Vector3(0, 0, 0)

@@ -18,26 +18,29 @@ void main() {
     if (!gl_FrontFacing)
         normalizedNormal = -normalizedNormal;
 
+    float alpha = 1.0;
     // Fresnel
     vec3 viewVector = normalize(cameraPosition - vPosition);
     float fresnel = pow(1.0 - abs(dot(viewVector, normalizedNormal)), 2.0);
+    alpha *= fresnel;
 
     // Emission
     float emissionTime = pow(mod(uTime, 5.0), 2.0); 
     float offsetX = (normalizedNormal.x * 0.5 + 0.5) * 0.4; // 0~0.2
     float emission = 1.0 - distance(normalizedNormal.y * 0.5 + 0.5, emissionTime + offsetX) * 2.0; // 0~1
     emission = smoothstep(0.7, 1.0, emission) * 0.5;
+    alpha += emission;
 
     // Color
     float hue = texture(uNoiseTex, vUv).r;
     vec3 rainbow = hsb2rgb(vec3(
-        (hue + sin(uTime) * 0.2) * uHueRange + uHueOffset,
+        uHueOffset + sin(hue + uTime * 0.2) * uHueRange,
         0.8,
         1.0
     ));
 
     // Pop
-    vec4 finalColor = vec4(rainbow, (fresnel+ emission) * 1.0 - uPopTime);
+    vec4 finalColor = vec4(rainbow, alpha - uPopTime);
 
     gl_FragColor = finalColor;
     #include <tonemapping_fragment>

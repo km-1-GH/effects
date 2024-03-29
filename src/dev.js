@@ -11,7 +11,6 @@ export function devSetup(camera, canvas) {
     controls.target.y = 3
     controls.enableDamping = true
 
-
     /*
     *   reset control
     */

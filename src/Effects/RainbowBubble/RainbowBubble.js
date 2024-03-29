@@ -9,10 +9,10 @@ import noise from '/perlin.png'
  * @param {THREE.Scene | THREE.Mesh} [param.parent] - Parent Mesh to add
  * @param {THREE.Vector3} [param.position] - The position of the mesh
  * @param {Number} [param.scale] - The scale of the mesh
- * @param {Number} [param.hueOffset] - The hue offset
- * @param {Number} [param.hueRange] - The hue range
- * @param {THREE.Texture} [param.texture] - The noise texture
- * @param {Pane} [param.pane] - The pane instance
+ * @param {Boolean} [param.distortion] - The distortion flag
+ * @param {Number} [param.hueOffset] - The hue offset 0~1
+ * @param {Number} [param.hueRange] - The hue range 0~1
+ * @param {Pane} [param.gui] - The pane instance
  */
 
 export default class RainbowBubble {
@@ -20,16 +20,20 @@ export default class RainbowBubble {
         this.parent = param.parent || null
         this.position = param.position || new THREE.Vector3(0, 0, 0)
         this.scale = param.scale || 1
+        this.distortion = param.distortion || false
         this.hueOffset = param.hueOffset || 0.51
         this.hueRange = param.hueRange || 0.2
-        this.noiseTex = param.texture || new THREE.TextureLoader().load(noise)
+        this.noiseTex = new THREE.TextureLoader().load(noise)
+        this.noiseTex.wrapS = this.noiseTex.wrapT = THREE.RepeatWrapping
 
         this.create()
 
         this.state = 'off'
         this.elapsed = 0
 
-        if (param.pane) this.setupGUI(param.pane)
+        this.disposed = false
+
+        if (param.gui) this.setupGUI(param.gui)
     }
 
     create() {
@@ -47,6 +51,7 @@ export default class RainbowBubble {
                 uNoiseTex: { value: this.noiseTex },
                 uHueOffset: { value: this.hueOffset },
                 uHueRange: { value: this.hueRange },
+                uDistortionStrength: { value: this.distortion ? 1 : 0 },
             },
         })
 
@@ -59,6 +64,8 @@ export default class RainbowBubble {
     }
 
     activate(position=this.position) {
+if (this.disposed) return
+
         this.object.position.copy(position)
         this.elapsed = 0
         this.state = 'on'
@@ -67,11 +74,15 @@ export default class RainbowBubble {
     }
 
     pop() {
+    if (this.disposed) return
+
         this.state = 'pop'
         this.elapsed = 0
     }
 
     stop() {
+    if (this.disposed) return
+
         this.state = 'off'
         this.object.visible = false
         this.object.material.uniforms.uPopTime.value = 0
@@ -79,6 +90,7 @@ export default class RainbowBubble {
     }
 
     update(delta) {
+    if (this.disposed) return
         if (this.state === 'off') return
 
         if (this.state === 'pop') {
@@ -113,5 +125,16 @@ export default class RainbowBubble {
 
         ShaderParam.addBinding(this, 'hueRange', {min: 0, max: 1 })
             .on('change', () => this.object.material.uniforms.uHueRange.value = this.hueRange)
+
+        ShaderParam.addBinding(this, 'distortion')
+            .on('change', () => this.object.material.uniforms.uDistortionStrength.value = this.distortion ? 1 : 0)
+    }
+
+    dispose() {
+        if (this.disposed) return
+        this.disposed = true
+
+        this.object.material.dispose()
+        this.object.geometry.dispose()
     }
 }
