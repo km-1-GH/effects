@@ -1,5 +1,7 @@
 import * as THREE from 'three'
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
+import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js'
+import { GPUComputationRenderer } from 'three/examples/jsm/misc/GPUComputationRenderer.js'
 
 import * as dev from './dev.js'
 import SmokeParticle from './Effects/Smoke-Puff/SmokeParticle'
@@ -11,12 +13,17 @@ import Fire from './Effects/Fire/Fire.js'
 import PoppingHeart from './Effects/PoppingHeart/PoppingHeart.js'
 import Confetti from './Effects/Confetti/Confetti.js'
 
+import particleVertexShader from './Effects/GPGPU/shaders/particles/vertex.glsl'
+import particleFragmentShader from './Effects/GPGPU/shaders/particles/fragment.glsl'
+import gpgpuParticleShader from './Effects/GPGPU/shaders/gpgpu/particles.glsl'
+
 /**
  * Sizes
  */
 const sizes = {
     width: window.innerWidth,
-    height: window.innerHeight
+    height: window.innerHeight,
+    pixelRatio: Math.min(window.devicePixelRatio, 2),
 }
 sizes.resolution = new THREE.Vector2(sizes.width, sizes.height)
 
@@ -25,6 +32,13 @@ window.addEventListener('resize', () =>
     // Update sizes
     sizes.width = window.innerWidth
     sizes.height = window.innerHeight
+    sizes.pixelRatio = Math.min(window.devicePixelRatio, 2)
+
+    // for GPGPU particles
+    // Materials
+    if (particles.material) {
+        particles.material.uniforms.uResolution.value.set(sizes.width * sizes.pixelRatio, sizes.height * sizes.pixelRatio)
+    }
     
     // Update camera
     camera.aspect = sizes.width / sizes.height
@@ -32,7 +46,7 @@ window.addEventListener('resize', () =>
     
     // Update renderer
     renderer.setSize(sizes.width, sizes.height)
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+    renderer.setPixelRatio(sizes.pixelRatio)
     
     sizes.resolution.set(sizes.width, sizes.height)
     items.smokePuff.resize(sizes.resolution)
@@ -46,7 +60,7 @@ const canvas = document.querySelector('canvas.webgl')
 
 const scene = new THREE.Scene()
 
-const camera = new THREE.PerspectiveCamera(25, sizes.width / sizes.height, 0.1, 100)
+const camera = new THREE.PerspectiveCamera(35, sizes.width / sizes.height, 0.1, 100)
 camera.position.x = 9
 camera.position.y = 8
 camera.position.z = 20
@@ -54,14 +68,19 @@ scene.add(camera)
 
 const renderer = new THREE.WebGLRenderer({
     canvas: canvas,
-    antialias: true
+    antialias: true,
 })
 renderer.setSize(sizes.width, sizes.height)
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+renderer.setPixelRatio(sizes.pixelRatio)
 
 // Loaders
 const textureLoader = new THREE.TextureLoader()
+
+const dracoLoader = new DRACOLoader()
+dracoLoader.setDecoderPath('/ship-draco/')
 const gltfLoader = new GLTFLoader()
+gltfLoader.setDRACOLoader(dracoLoader)
+
 
 /**
  * Mesh
@@ -70,13 +89,121 @@ const items = {}
 dev.devSetup(camera, canvas)
 const pane = dev.getPane()
 
+/**
+ * Load model
+ */
+const gltf = await gltfLoader.loadAsync('./ship-model.glb')
+
+/**
+ * BaseGeometry
+ */
+const baseGeometry = {}
+baseGeometry.instance = gltf.scene.children[0].geometry
+baseGeometry.count = baseGeometry.instance.attributes.position.count
+
+/**
+ * GPU Compute
+ */
+const gpgpu = {}
+gpgpu.size = Math.ceil(Math.sqrt(baseGeometry.count))
+gpgpu.computation = new GPUComputationRenderer(gpgpu.size, gpgpu.size, renderer)
+
+// Base Particles
+const baseParticleTexture = gpgpu.computation.createTexture()
+for (let i = 0; i < baseGeometry.count; i++) {
+    const i3 = i * 3
+    const i4 = i * 4
+
+    // position baset on geometry
+    baseParticleTexture.image.data[i4 + 0] = baseGeometry.instance.attributes.position.array[i3 + 0]
+    baseParticleTexture.image.data[i4 + 1] = baseGeometry.instance.attributes.position.array[i3 + 1]
+    baseParticleTexture.image.data[i4 + 2] = baseGeometry.instance.attributes.position.array[i3 + 2]
+    baseParticleTexture.image.data[i4 + 3] = Math.random()
+}
+
+// Particles variable
+gpgpu.particleVariable = gpgpu.computation.addVariable('uParticles', gpgpuParticleShader, baseParticleTexture)
+gpgpu.computation.setVariableDependencies(gpgpu.particleVariable, [gpgpu.particleVariable])
+
+// Uniforms
+gpgpu.particleVariable.material.uniforms.uTime = { value: 0 }
+gpgpu.particleVariable.material.uniforms.uBase = { value: baseParticleTexture }
+gpgpu.particleVariable.material.uniforms.uDeltaTime = { value: 0 }
+gpgpu.particleVariable.material.uniforms.uFlowFieldInfluence = { value: 0.5 }
+gpgpu.particleVariable.material.uniforms.uFlowFieldStrength = { value: 2 }
+gpgpu.particleVariable.material.uniforms.uFlowFieldFrequency = { value: 0.5 }
+
+// Init
+gpgpu.computation.init()
+
+// Debug GPGPU
+gpgpu.debug = new THREE.Mesh(
+    new THREE.PlaneGeometry(3, 3),
+    new THREE.MeshBasicMaterial({ map: gpgpu.computation.getCurrentRenderTarget(gpgpu.particleVariable).texture })
+)
+gpgpu.debug.position.set(4, 0, 6)
+scene.add(gpgpu.debug)
+
+
+
+const particles = {}
+// Geometry
+const particlesUvArray = new Float32Array(baseGeometry.count * 2)
+const sizesArray = new Float32Array(baseGeometry.count)
+
+for (let y = 0; y < gpgpu.size; y++) {
+    for (let x = 0; x < gpgpu.size; x++) {
+        const i = y * gpgpu.size + x
+        const i2 = i * 2
+
+        // particles uv
+        const uvX = (x + 0.5) / gpgpu.size
+        const uvY = (y + 0.5) / gpgpu.size
+
+        particlesUvArray[i2 + 0] = uvX
+        particlesUvArray[i2 + 1] = uvY
+
+        // sizes
+        sizesArray[i] = Math.random()
+    }
+}
+
+particles.geometry = new THREE.BufferGeometry()
+particles.geometry.setDrawRange(0, baseGeometry.count)
+particles.geometry.setAttribute('aParticlesUv', new THREE.BufferAttribute(particlesUvArray, 2))
+particles.geometry.setAttribute('aColor', baseGeometry.instance.attributes.color)
+particles.geometry.setAttribute('aSize', new THREE.BufferAttribute(sizesArray, 1))
+
+// Material
+particles.material = new THREE.ShaderMaterial({
+    vertexShader: particleVertexShader,
+    fragmentShader: particleFragmentShader,
+    uniforms: {
+        uTexture : { value: textureLoader.load('./circle_05.png') },
+        uSize: { value: 0.04 },
+        uResolution: { value: new THREE.Vector2(sizes.width * sizes.pixelRatio, sizes.height * sizes.pixelRatio) },
+        uParticlesTexture: new THREE.Uniform(),
+    },
+})
+
+particles.points = new THREE.Points(particles.geometry, particles.material)
+particles.points.position.y = 3.5
+scene.add(particles.points)
+
+const GPUFolder = pane.addFolder({ title: 'GPGPU Particles', expanded: true, index: 0 })
+GPUFolder.addBinding(particles.material.uniforms.uSize, 'value', { label: 'Size', min: 0.01, max: 1, step: 0.01})
+GPUFolder.addBinding(gpgpu.particleVariable.material.uniforms.uFlowFieldInfluence, 'value', { label: 'Flow Field Influence', min: 0, max: 1, step: 0.01})
+GPUFolder.addBinding(gpgpu.particleVariable.material.uniforms.uFlowFieldStrength, 'value', { label: 'Flow Field Strength', min: 0, max: 10, step: 0.1})
+GPUFolder.addBinding(gpgpu.particleVariable.material.uniforms.uFlowFieldFrequency, 'value', { label: 'Flow Field Frequency', min: 0, max: 1, step: 0.001})
+
+
 // smokePuff
 items.smokePuff = new SmokeParticle({
         parent: scene,
         position: new THREE.Vector3(-3, 2, 0),
-        pixelRatio: Math.min(window.devicePixelRatio, 2),
+        pixelRatio: sizes.pixelRatio,
         resolution: sizes.resolution,
-        gui: pane.addFolder({ title: 'Smoke Puff', expanded: false, index: 1 })
+        gui: pane.addFolder({ title: 'Smoke Puff', expanded: false, index: 10 })
     },
 )
 
@@ -84,16 +211,17 @@ items.smokePuff = new SmokeParticle({
 items.smokeCoffee = new SmokeCoffee({
         parent: scene,
         position: new THREE.Vector3(0, 1.83, 0),
-        gui: pane.addFolder({ title: 'Smoke Coffee', expanded: false, index: 2 })
+        gui: pane.addFolder({ title: 'Smoke Coffee', expanded: false, index: 11 })
     },
 )
 
 // fire
 items.fire = new Fire({
         parent: scene,
+        pixelRatio: sizes.pixelRatio,
         resolution: sizes.resolution,
         position: new THREE.Vector3(3, 1, 3),
-        gui: pane.addFolder({ title: 'Fire', expanded: false, index: 3 })
+        gui: pane.addFolder({ title: 'Fire', expanded: false, index: 12 })
     },
 )
 
@@ -101,13 +229,14 @@ items.fire = new Fire({
 items.flame = new Flame({
         parent: scene,
         position: new THREE.Vector3(-3, 0.2, 5),
+        pixelRatio: sizes.pixelRatio,
         resolution: sizes.resolution,
-        gui: pane.addFolder({ title: 'Flame', expanded: false, index: 4 })
+        gui: pane.addFolder({ title: 'Flame', expanded: false, index: 13 })
     },
 )
 
 // Hologram Material & Rainbow Bubble
-const hologramMaterial = new HologramMaterial({ gui: pane.addFolder({ title: 'Hologram Material', expanded: false, index: 5 }) })
+const hologramMaterial = new HologramMaterial({ gui: pane.addFolder({ title: 'Hologram Material', expanded: false, index: 14 }) })
 // Suzanne
 let suzanne = null
 let suzanneRainbowBubble
@@ -123,7 +252,7 @@ gltfLoader.load('./suzanne.glb', (gltf) => {
 
         suzanneRainbowBubble = new RainbowBubble({ 
             parent: suzanne, 
-            gui: pane.addFolder({ title: 'Rainbow Bubble', expanded: false, index: 6 })
+            gui: pane.addFolder({ title: 'Rainbow Bubble', expanded: false, index: 15 })
         })
     }
 )
@@ -132,16 +261,18 @@ gltfLoader.load('./suzanne.glb', (gltf) => {
 items.poppingHeart = new PoppingHeart({
         parent: scene,
         position: new THREE.Vector3(0, 2, 0),
+        pixelRatio: sizes.pixelRatio,
         resolution: sizes.resolution,
-        gui: pane.addFolder({ title: 'Popping Heart', expanded: false, index: 7})
+        gui: pane.addFolder({ title: 'Popping Heart', expanded: false, index: 16 })
     },
 )
 
 // Confetti
 items.confetti = new Confetti({ 
     parent: scene,
+    pixelRatio: sizes.pixelRatio,
     resolution: sizes.resolution,
-    gui: pane.addFolder({ title: 'Confetti', expanded: false, index: 8 }) 
+    gui: pane.addFolder({ title: 'Confetti', expanded: false, index: 17 }) 
 })
 
 /**
@@ -200,6 +331,12 @@ const render = () =>
 
     // Update controls
     dev.render()
+
+    // GPGPU Update
+    gpgpu.particleVariable.material.uniforms.uTime.value = elapsed
+    gpgpu.particleVariable.material.uniforms.uDeltaTime.value = delta
+    gpgpu.computation.compute()
+    particles.material.uniforms.uParticlesTexture.value = gpgpu.computation.getCurrentRenderTarget(gpgpu.particleVariable).texture
 
     // Render
     renderer.render(scene, camera)
