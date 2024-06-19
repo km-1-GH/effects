@@ -187,10 +187,10 @@ particles.material = new THREE.ShaderMaterial({
 })
 
 particles.points = new THREE.Points(particles.geometry, particles.material)
-particles.points.position.y = 3.5
+particles.points.position.set(-7.6, 0, -5)
 scene.add(particles.points)
 
-const GPUFolder = pane.addFolder({ title: 'GPGPU Particles', expanded: true, index: 0 })
+const GPUFolder = pane.addFolder({ title: 'GPGPU Particles', expanded: false, index: 0 })
 GPUFolder.addBinding(particles.material.uniforms.uSize, 'value', { label: 'Size', min: 0.01, max: 1, step: 0.01})
 GPUFolder.addBinding(gpgpu.particleVariable.material.uniforms.uFlowFieldInfluence, 'value', { label: 'Flow Field Influence', min: 0, max: 1, step: 0.01})
 GPUFolder.addBinding(gpgpu.particleVariable.material.uniforms.uFlowFieldStrength, 'value', { label: 'Flow Field Strength', min: 0, max: 10, step: 0.1})
@@ -246,7 +246,7 @@ gltfLoader.load('./suzanne.glb', (gltf) => {
             if(child.isMesh)
                 child.material = hologramMaterial.material
         })
-        suzanne.position.set(0, 2, -2)
+        suzanne.position.set(0, 2, 2)
         suzanne.scale.setScalar(0.7)
         scene.add(suzanne)
 
@@ -322,9 +322,9 @@ const render = () =>
         suzanne.rotation.y = elapsed * 0.2
         // Update rainbowBubble
         if (suzanneRainbowBubble.state === 'on') {
-            suzanne.position.x = Math.cos(elapsed * 0.6) * 5
-            suzanne.position.y = Math.sin(elapsed * 1.4) * 2 + 2
-            suzanne.position.z = Math.cos(elapsed * 0.2) * 3 - 2
+            // suzanne.position.x = Math.cos(elapsed * 0.6) * 5
+            // suzanne.position.y = Math.sin(elapsed * 1.4) * 2 + 2
+            // suzanne.position.z = Math.cos(elapsed * 0.2) * 3 - 2
         }
         suzanneRainbowBubble.update(delta)
     }

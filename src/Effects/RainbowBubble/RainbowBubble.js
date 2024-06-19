@@ -13,6 +13,8 @@ import noise from '/perlin.png'
  * @param {Number} [param.hueOffset] - The hue offset 0~1
  * @param {Number} [param.hueRange] - The hue range 0~1
  * @param {Pane} [param.gui] - The pane instance
+ * @param {Number} [param.speed] - The speed of popping
+ * @param {Number} [param.uPopNoiseFrequency] - The noise frequency when pop
  */
 
 export default class RainbowBubble {
@@ -25,6 +27,8 @@ export default class RainbowBubble {
         this.hueRange = param.hueRange || 0.2
         this.noiseTex = new THREE.TextureLoader().load(noise)
         this.noiseTex.wrapS = this.noiseTex.wrapT = THREE.RepeatWrapping
+        this.speed = param.speed || 1
+        this.popNoiseFrequency = param.uPopNoiseFrequency || 0.22
 
         this.create()
 
@@ -52,6 +56,8 @@ export default class RainbowBubble {
                 uHueOffset: { value: this.hueOffset },
                 uHueRange: { value: this.hueRange },
                 uDistortionStrength: { value: this.distortion ? 1 : 0 },
+                uPopSpeed: { value: this.speed },
+                uPopNoiseFrequency: { value: this.popNoiseFrequency },
             },
         })
 
@@ -64,7 +70,7 @@ export default class RainbowBubble {
     }
 
     activate(position=this.position) {
-if (this.disposed) return
+        if (this.disposed) return
 
         this.object.position.copy(position)
         this.elapsed = 0
@@ -74,14 +80,14 @@ if (this.disposed) return
     }
 
     pop() {
-    if (this.disposed) return
+        if (this.disposed) return
 
         this.state = 'pop'
         this.elapsed = 0
     }
 
     stop() {
-    if (this.disposed) return
+        if (this.disposed) return
 
         this.state = 'off'
         this.object.visible = false
@@ -90,11 +96,11 @@ if (this.disposed) return
     }
 
     update(delta) {
-    if (this.disposed) return
+        if (this.disposed) return
         if (this.state === 'off') return
 
         if (this.state === 'pop') {
-            this.elapsed += delta * 5
+            this.elapsed += delta
             this.object.material.uniforms.uPopTime.value = this.elapsed
             if (this.elapsed > 1) this.stop()
             return
@@ -128,6 +134,12 @@ if (this.disposed) return
 
         ShaderParam.addBinding(this, 'distortion')
             .on('change', () => this.object.material.uniforms.uDistortionStrength.value = this.distortion ? 1 : 0)
+
+        ShaderParam.addBinding(this, 'speed', {min: 0, max: 2})
+            .on('change', () => this.object.material.uniforms.uPopSpeed.value = this.speed)
+
+        ShaderParam.addBinding(this, 'popNoiseFrequency', {min: 0.1, max: 2})
+            .on('change', () => this.object.material.uniforms.uPopNoiseFrequency.value = this.popNoiseFrequency)
     }
 
     dispose() {

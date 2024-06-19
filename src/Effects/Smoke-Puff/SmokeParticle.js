@@ -21,7 +21,6 @@ export default class SmokeParticle {
     constructor(param) {
         this.parent = param.parent || null
         this.pixelRatio = param.pixelRatio || 1
-        this.resolution = param.resolution || new THREE.Vector2(1000, 750)
         this.position = param.position || new THREE.Vector3(0, 0, 0)
         this.scale = param.scale || 1
         this.speed = param.speed || 1
@@ -31,14 +30,19 @@ export default class SmokeParticle {
         
         this.noiseTex = new THREE.TextureLoader().load(noise)
         this.noiseTex.wrapS = this.noiseTex.wrapT = THREE.RepeatWrapping
-        this.colors = [
-            new THREE.Color(color1),
-            new THREE.Color(color2),
-        ]
-        this.PARTICLE_SIZE = 4 * this.size
+        this.PARTICLE_SIZE = 4 * this.size * this.pixelRatio
 
-        this.object
-        this.create()
+        this.uniforms = {
+            uSize: { value: this.PARTICLE_SIZE },
+            uMeshScale: { value: this.scale || 1 },
+            uTime: { value: 0 },
+            uResolution: { value: param.resolution || new THREE.Vector2(1000, 750) },
+            uNoiseTex: { value: this.noiseTex },
+            uColor1: { value: new THREE.Color(color1) },
+            uColor2: { value: new THREE.Color(color2) },
+        }
+
+        this.object = this.create()
 
         this.elapsed = 0
 
@@ -46,8 +50,7 @@ export default class SmokeParticle {
     }
 
     resize(resolution) {
-        this.resolution = resolution
-        this.object.material.uniforms.uResolution.value.set(this.resolution.x, this.resolution.y)
+        this.uniforms.uResolution.value.set(resolution.x, resolution.y)
     }
 
     create() {
@@ -107,20 +110,10 @@ export default class SmokeParticle {
         /**
          * material
          */
-        const uniforms = {}
-        uniforms.uSize = { value: this.PARTICLE_SIZE * this.pixelRatio }
-        uniforms.uMeshScale = { value: 1 }
-        uniforms.uTime = { value: 0 }
-        uniforms.uResolution = { value: this.resolution }
-        uniforms.uNoiseTex = { value: this.noiseTex }
-        for (let i = 0; i < this.colors.length; i++) {
-            uniforms[`uColor${i + 1}`] = { value: this.colors[i] }
-        }
-
         const material = new THREE.ShaderMaterial({
             transparent: true,
             depthWrite: false,
-            uniforms: uniforms,
+            uniforms: this.uniforms,
             vertexShader,
             fragmentShader,
         })
@@ -128,19 +121,21 @@ export default class SmokeParticle {
         /**
          * object(Points)
          */
-        this.object = new THREE.Points(geometry, material)
-        this.object.position.copy(this.position)
-        this.object.visible = false
+        const object = new THREE.Points(geometry, material)
+        object.position.copy(this.position)
+        object.visible = false
         this.state = 'off'
 
-        if (this.parent) this.parent.add(this.object)
+        if (this.parent) this.parent.add(object)
+
+        return object
     }
 
     activate(position=this.position, addScale=0, speed=this.speed) {
         this.object.position.set(position.x, position.y, position.z)
         this.object.rotation.z = Math.random() * Math.PI * 2
         this.object.scale.setScalar(this.scale + addScale)
-        this.object.material.uniforms.uMeshScale.value = this.scale + addScale
+        this.uniforms.uMeshScale.value = this.scale + addScale
         this.speed = speed
 
         this.elapsed = 0
@@ -152,7 +147,7 @@ export default class SmokeParticle {
         if (this.state !== 'on') return ////////////
 
         this.elapsed += delta * 0.5 * this.speed
-        this.object.material.uniforms.uTime.value = this.elapsed
+        this.uniforms.uTime.value = this.elapsed
 
         if (this.elapsed >= 1) {
             this.elapsed = 0
@@ -176,25 +171,25 @@ export default class SmokeParticle {
         MeshParam.addBinding(this, 'speed', { min: 0.3, max: 2 })
 
         ShaderParam.addBinding(this, 'size', { min: 0.8, max: 1.5 })
-            .on('change', () => { this.object.material.uniforms.uSize.value = this.PARTICLE_SIZE * this.size })
+            .on('change', () => { this.uniforms.uSize.value = this.PARTICLE_SIZE * this.size * this.pixelRatio })
 
         ShaderParam.addBinding(
-            this.object.material.uniforms.uColor1, 'value', 
+            this.uniforms.uColor1, 'value', 
             {color: {type: 'float'}, label: 'Main color'}
         ).on('change', value => {
-            this.object.material.uniforms.uColor1.value = new THREE.Color(value.value.r, value.value.g, value.value.b)
+            this.uniforms.uColor1.value = new THREE.Color(value.value.r, value.value.g, value.value.b)
             .convertLinearToSRGB()
-            console.log(`0x${this.object.material.uniforms.uColor1.value.getHexString()}`)
+            console.log(`0x${this.uniforms.uColor1.value.getHexString()}`)
         })
 
         ShaderParam.addBinding(
-            this.object.material.uniforms.uColor2, 
+            this.uniforms.uColor2, 
             'value', 
             {color: {type: 'float'}, label: 'Rim color'}
         ).on('change', value => {
-            this.object.material.uniforms.uColor2.value = new THREE.Color(value.value.r, value.value.g, value.value.b)
+            this.uniforms.uColor2.value = new THREE.Color(value.value.r, value.value.g, value.value.b)
             .convertLinearToSRGB()
-            console.log(`0x${this.object.material.uniforms.uColor2.value.getHexString()}`)
+            console.log(`0x${this.uniforms.uColor2.value.getHexString()}`)
         })
     }
  }

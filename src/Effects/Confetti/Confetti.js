@@ -25,21 +25,27 @@ export default class Confetti {
     constructor(param) {
         this.parent = param.parent || null
         this.pixelRatio = param.pixelRatio || 1
-        this.resolution = param.resolution || new THREE.Vector2(1000, 750)
         this.position = param.position || new THREE.Vector3(0, 0, 0)
         this.count = param.count || 30
         this.size = param.size || 1
-        this.hueOffset = param.hueOffset || 0
-        this.hueRange = param.hueRange || Math.PI * 2
-        this.saturation = param.saturation || 0.5
-        this.direction = param.direction || new THREE.Vector3(0, 1, 0)
-        this.duration = param.duration || 10
         this.texture = param.texture || new THREE.TextureLoader().load(confettiTex)
-        this.PARTICLE_SIZE = 1 * this.size
-
+        
+        this.PARTICLE_SIZE = 1 * this.size * this.pixelRatio
         this.texture.flipY = false
-        this.object
-        this.create()
+
+        this.uniforms = {
+            uTime: { value: 0 },
+            uResolution: { value: param.resolution || new THREE.Vector2(1000, 750) },
+            uSize: { value: this.PARTICLE_SIZE },
+            uTexture: { value: this.texture },
+            uDirection: { value: param.direction || new THREE.Vector3(0, 1, 0) },
+            uHueOffset: { value:  param.hueOffset || 0 },
+            uHueRange: { value: param.hueRange || 1 },
+            uSaturation: { value: param.saturation || 0.5 },
+            uDuration: { value: param.duration || 10 },
+        }
+
+        this.object = this.create()
 
         this.elapsed = 0
         this.active = false
@@ -48,8 +54,7 @@ export default class Confetti {
     }
 
     resize(resolution) {
-        this.resolution = resolution
-        this.object.material.uniforms.uResolution.value.set(this.resolution.x, this.resolution.y)
+        this.uniforms.uResolution.value.set(resolution.x, resolution.y)
     }
 
     create() {
@@ -85,21 +90,10 @@ export default class Confetti {
         /**
          * material
          */
-        const uniforms = {}
-        uniforms.uTime = { value: 0 }
-        uniforms.uResolution = { value: this.resolution }
-        uniforms.uSize = { value: this.PARTICLE_SIZE }
-        uniforms.uTexture = { value: this.texture }
-        uniforms.uDirection = { value: this.direction }
-        uniforms.uHueOffset = { value: this.hueOffset }
-        uniforms.uHueRange = { value: this.hueRange }
-        uniforms.uSaturation = { value: this.saturation }
-        uniforms.uDuration = { value: this.duration }
-
         const material = new THREE.ShaderMaterial({
             transparent: true,
             depthWrite: false,
-            uniforms: uniforms,
+            uniforms: this.uniforms,
             vertexShader,
             fragmentShader,
         })
@@ -107,11 +101,13 @@ export default class Confetti {
         /**
          * object(Points)
          */
-        this.object = new THREE.Points(geometry, material)
-        this.object.position.copy(this.position)
-        this.object.visible = false
+        const object = new THREE.Points(geometry, material)
+        object.position.copy(this.position)
+        object.visible = false
 
-        if (this.parent) this.parent.add(this.object)
+        if (this.parent) this.parent.add(object)
+
+        return object
     }
 
     activate(position=this.position) {
@@ -154,46 +150,39 @@ export default class Confetti {
                 if (this.parent) this.parent.remove(this.object)
                 this.object.geometry.dispose()
                 this.object.material.dispose()
-                this.create()
+                this.object = null
+                this.object = this.create()
             })
 
-        pane.addBinding(this, 'size', { min: 0, max: 3})
-            .on('change', () => { this.object.material.uniforms.uSize.value = this.size })
+        pane.addBinding(this.uniforms.uSize, 'value', { min: 0, max: 3, label: 'uSize'})
 
-        pane.addBinding(this, 'hueOffset', { min: 0, max: 1, step: 0.01 })
-            .on('change', () => { this.object.material.uniforms.uHueOffset.value = this.hueOffset })
+        pane.addBinding(this.uniforms.uHueOffset, 'value', { min: 0, max: 1, step: 0.01, label: 'uHueOffset'})
 
-        pane.addBinding(this, 'hueRange', { min: 0, max: 1, step: 0.01 })
-            .on('change', () => { this.object.material.uniforms.uHueRange.value = this.hueRange })
+        pane.addBinding(this.uniforms.uHueRange, 'value', { min: 0, max: 1, step: 0.01, label: 'uHueRange'})
 
-        pane.addBinding(this, 'saturation', { min: 0, max: 1, step: 0.01 })
-            .on('change', () => { this.object.material.uniforms.uSaturation.value = this.saturation })
+        pane.addBinding(this.uniforms.uSaturation, 'value',  { min: 0, max: 1, step: 0.01, label: 'uSaturation'})
 
-        pane.addBinding(this.direction, 'x', { min: -1, max: 1, label: 'direction_x'})
+        pane.addBinding(this.uniforms.uDirection.value, 'x', { min: -1, max: 1, label: 'direction_x'})
             .on('change', () => { 
                 this.deactivate()
-                this.object.material.uniforms.uDirection.value.x = this.direction.x
                 this.activate() 
             })
 
-        pane.addBinding(this.direction, 'y', { min: -1, max: 1, label: 'direction_y'})
+        pane.addBinding(this.uniforms.uDirection.value, 'y', { min: -1, max: 1, label: 'direction_y'})
             .on('change', () => { 
                 this.deactivate()
-                this.object.material.uniforms.uDirection.value.x = this.direction.y
                 this.activate() 
             })
 
-        pane.addBinding(this.direction, 'z', { min: -1, max: 1, label: 'direction_z'})
+        pane.addBinding(this.uniforms.uDirection.value, 'z', { min: -1, max: 1, label: 'direction_z'})
             .on('change', () => { 
                 this.deactivate()
-                this.object.material.uniforms.uDirection.value.x = this.direction.z
                 this.activate() 
             })
 
-        pane.addBinding(this, 'duration', { min: 5, max: 20 })
+        pane.addBinding(this.uniforms.uDuration, 'value', { min: 5, max: 20, label: 'duration'})
             .on('change', () => { 
                 this.deactivate()
-                this.object.material.uniforms.uDuration.value = this.duration
                 this.activate()
             })
     }
