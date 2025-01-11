@@ -11,7 +11,9 @@ import HologramMaterial from './Effects/Hologram/HologramMaterial.js'
 import RainbowBubble from './Effects/RainbowBubble/RainbowBubble.js'
 import Fire from './Effects/Fire/Fire.js'
 import PoppingHeart from './Effects/PoppingHeart/PoppingHeart.js'
+import PoppingCharas from './Effects/PoppingCharas/PoppingCharas.js'
 import Confetti from './Effects/Confetti/Confetti.js'
+import RoundingCharas from './Effects/RoundingCharas/RoundingCharas.js'
 
 import particleVertexShader from './Effects/GPGPU/shaders/particles/vertex.glsl'
 import particleFragmentShader from './Effects/GPGPU/shaders/particles/fragment.glsl'
@@ -90,6 +92,49 @@ dev.devSetup(camera, canvas)
 const pane = dev.getPane()
 
 /**
+ * Test Mesh
+ */
+const shape = new THREE.Shape()
+const x = 0
+const y = 0
+const halfWidth = 0.5
+const height = 2
+const curveRadius = halfWidth * 2 * 0.1
+
+shape.moveTo(x + halfWidth - curveRadius, y)
+shape.bezierCurveTo(
+    x + halfWidth - curveRadius, y,
+    x + halfWidth, y,
+    x + halfWidth, y + curveRadius
+)
+shape.lineTo(x + halfWidth, y + height - curveRadius)
+shape.bezierCurveTo(
+    x + halfWidth, y + height - curveRadius,
+    x + halfWidth, y + height,
+    x + halfWidth - curveRadius, y + height
+)
+shape.lineTo(x - halfWidth + curveRadius, y + height)
+shape.bezierCurveTo(
+    x - halfWidth + curveRadius, y + height,
+    x - halfWidth, y + height,
+    x - halfWidth, y + height - curveRadius
+)
+shape.lineTo(x - halfWidth, y + curveRadius)
+shape.bezierCurveTo(
+    x - halfWidth, y + curveRadius,
+    x - halfWidth, y,
+    x - halfWidth + curveRadius, y
+)
+
+const roundedSquare = new THREE.Mesh(
+    new THREE.ShapeGeometry(shape),
+    new THREE.MeshBasicMaterial({ color: 0xff0000 })
+)
+roundedSquare.position.set(0, 5, 0)
+scene.add(roundedSquare)
+
+
+/**
  * Load model
  */
 const gltf = await gltfLoader.loadAsync('./ship-model.glb')
@@ -143,8 +188,6 @@ gpgpu.debug = new THREE.Mesh(
 )
 gpgpu.debug.position.set(4, 0, 6)
 scene.add(gpgpu.debug)
-
-
 
 const particles = {}
 // Geometry
@@ -259,13 +302,21 @@ gltfLoader.load('./suzanne.glb', (gltf) => {
 
 // Popping Heart
 items.poppingHeart = new PoppingHeart({
-        parent: scene,
-        position: new THREE.Vector3(0, 2, 0),
-        pixelRatio: sizes.pixelRatio,
-        resolution: sizes.resolution,
-        gui: pane.addFolder({ title: 'Popping Heart', expanded: false, index: 16 })
-    },
-)
+    parent: scene,
+    position: new THREE.Vector3(0, 2, 0),
+    pixelRatio: sizes.pixelRatio,
+    resolution: sizes.resolution,
+    gui: pane.addFolder({ title: 'Popping Heart', expanded: false, index: 16 })
+})
+
+// Popping Heart
+items.poppingCharas = new PoppingCharas({
+    parent: scene,
+    position: new THREE.Vector3(-1, 3, 5),
+    pixelRatio: sizes.pixelRatio,
+    resolution: sizes.resolution,
+    gui: pane.addFolder({ title: 'Popping Charas', expanded: false, index: 16 })
+})
 
 // Confetti
 items.confetti = new Confetti({ 
@@ -273,6 +324,17 @@ items.confetti = new Confetti({
     pixelRatio: sizes.pixelRatio,
     resolution: sizes.resolution,
     gui: pane.addFolder({ title: 'Confetti', expanded: false, index: 17 }) 
+})
+
+// Rounding Charas
+items.roundingCharas = new RoundingCharas({
+    parent: scene,
+    position: new THREE.Vector3(2.5, 4, 5),
+    pixelRatio: sizes.pixelRatio,
+    resolution: sizes.resolution,
+    size: 10,
+    radius: 10,
+    gui: pane.addFolder({ title: 'Rounding Charas', expanded: false, index: 18 })
 })
 
 /**
@@ -314,14 +376,18 @@ const render = () =>
     items.poppingHeart.update(delta)
     // Update confetti
     items.confetti.update(delta)
+    // Update roundingCharas
+    items.roundingCharas.update(delta)
+    // Update poppingCharas
+    items.poppingCharas.update(delta)
     
     
     // Rotate objects
     if(suzanne) {
-        suzanne.rotation.x = - elapsed * 0.1
-        suzanne.rotation.y = elapsed * 0.2
+        // suzanne.rotation.x = - elapsed * 0.1
+        // suzanne.rotation.y = elapsed * 0.2
         // Update rainbowBubble
-        if (suzanneRainbowBubble.state === 'on') {
+        if (suzanneRainbowBubble && suzanneRainbowBubble.state === 'on') {
             // suzanne.position.x = Math.cos(elapsed * 0.6) * 5
             // suzanne.position.y = Math.sin(elapsed * 1.4) * 2 + 2
             // suzanne.position.z = Math.cos(elapsed * 0.2) * 3 - 2
@@ -346,3 +412,16 @@ const render = () =>
 }
 
 render()
+
+const toggleListBtn = document.getElementById('toggle-links')
+const list = document.getElementById('list-links')
+const toggleListText = document.querySelector('#toggle-links>h1')
+
+toggleListBtn.addEventListener('click', () => {
+    list.classList.toggle('show')
+    if (list.classList.contains('show')) {
+        toggleListText.textContent = '×'
+    } else {
+        toggleListText.textContent = 'Next'
+    }
+})

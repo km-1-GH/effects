@@ -21,3 +21,64 @@ body
 button.tp-fldv_b {
     color: skyblue;
 }
+
+#links {
+    position: fixed;
+    top: 0.5em;
+    left: 0.5em;
+    z-index: 2;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.6);
+}
+
+#toggle-links {
+    text-align: right;
+    cursor: pointer;
+    padding: 0 0.5em;
+}
+
+#toggle-links:hover {
+    color: white;
+}
+
+#list-links {
+    display: none;
+    transform: translateX(150%);
+    font-size: 1.5em;
+}
+
+#list-links.show {
+    display: block;
+    animation: slide 0.3s forwards;
+}
+
+@keyframes slide {
+    0% {
+        transform: translateX(-150%);
+    }
+    100% {
+        transform: translateX(0);
+    }
+}
+
+#list-links li {
+    padding: 0 0.5em;
+    color: #0000e1;
+}
+
+#list-links li:hover {
+    background: #00000093;
+    color: whtie;
+}
+
+#list-links a {
+    color: inherit;
+    display: inline-block;
+    text-decoration: none;
+}
+
+#list-links a:hover {
+    color: white;
+}
+
+

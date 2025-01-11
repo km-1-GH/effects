@@ -9,12 +9,14 @@ import noise from '/perlin.png'
  * @param {THREE.Scene | THREE.Mesh} [param.parent] - Parent Mesh to add
  * @param {THREE.Vector3} [param.position] - The position of the mesh
  * @param {Number} [param.scale] - The scale of the mesh
- * @param {Boolean} [param.distortion] - The distortion flag
+ * @param {Number} [param.distortion] - The distortion strength
+ * @param {Number} [param.distortionFrequency] - The distortion frequency
+ * @param {Number} [param.saturation] - The saturation 0.5~1
  * @param {Number} [param.hueOffset] - The hue offset 0~1
  * @param {Number} [param.hueRange] - The hue range 0~1
  * @param {Pane} [param.gui] - The pane instance
- * @param {Number} [param.speed] - The speed of popping
- * @param {Number} [param.uPopNoiseFrequency] - The noise frequency when pop
+ * @param {Number} [param.speed] - The speed of popping 0.1~3
+ * @param {Number} [param.popNoiseFrequency] - The noise frequency when pop 1~30
  */
 
 export default class RainbowBubble {
@@ -22,13 +24,15 @@ export default class RainbowBubble {
         this.parent = param.parent || null
         this.position = param.position || new THREE.Vector3(0, 0, 0)
         this.scale = param.scale || 1
-        this.distortion = param.distortion || false
+        this.distortion = param.distortion || 0
+        this.distortionFrequency = param.distortionFrequency || 0.5
+        this.saturation = param.saturation || 0.8
         this.hueOffset = param.hueOffset || 0.51
         this.hueRange = param.hueRange || 0.2
         this.noiseTex = new THREE.TextureLoader().load(noise)
         this.noiseTex.wrapS = this.noiseTex.wrapT = THREE.RepeatWrapping
-        this.speed = param.speed || 1
-        this.popNoiseFrequency = param.uPopNoiseFrequency || 0.22
+        this.speed = param.speed || 3
+        this.popNoiseFrequency = param.popNoiseFrequency || 1
 
         this.create()
 
@@ -53,9 +57,11 @@ export default class RainbowBubble {
                 uTime: { value: 0 },
                 uPopTime: { value: 0 },
                 uNoiseTex: { value: this.noiseTex },
+                uSaturation: { value: this.saturation },
                 uHueOffset: { value: this.hueOffset },
                 uHueRange: { value: this.hueRange },
-                uDistortionStrength: { value: this.distortion ? 1 : 0 },
+                uDistortionStrength: { value: this.distortion },
+                uDistortionFrequency: { value: this.distortionFrequency },
                 uPopSpeed: { value: this.speed },
                 uPopNoiseFrequency: { value: this.popNoiseFrequency },
             },
@@ -77,6 +83,8 @@ export default class RainbowBubble {
         this.state = 'on'
         this.object.visible = true
         this.object.material.uniforms.uPopTime.value = 0
+        this.object.material.uniforms.uTime.value = 0
+        this.object.material.uniforms.uSaturation.value = this.saturation
     }
 
     pop() {
@@ -84,6 +92,7 @@ export default class RainbowBubble {
 
         this.state = 'pop'
         this.elapsed = 0
+        this.object.material.uniforms.uSaturation.value = 0.5
     }
 
     stop() {
@@ -92,6 +101,8 @@ export default class RainbowBubble {
         this.state = 'off'
         this.object.visible = false
         this.object.material.uniforms.uPopTime.value = 0
+        this.object.material.uniforms.uTime.value = 0
+        this.object.material.uniforms.uSaturation.value = this.saturation
         this.elapsed = 0
     }
 
@@ -126,19 +137,25 @@ export default class RainbowBubble {
         MeshParam.addBinding(this, 'scale', {min: 0, max: 5 })
             .on('change', () => this.object.scale.setScalar(this.scale))
 
+        ShaderParam.addBinding(this, 'saturation', {min: 0.5, max: 1, step: 0.01 })
+            .on('change', () => this.object.material.uniforms.uSaturation.value = this.saturation)
+
         ShaderParam.addBinding(this, 'hueOffset', {min: 0, max: 1, step: 0.01 })
             .on('change', () => this.object.material.uniforms.uHueOffset.value = this.hueOffset)
 
         ShaderParam.addBinding(this, 'hueRange', {min: 0, max: 1 })
             .on('change', () => this.object.material.uniforms.uHueRange.value = this.hueRange)
 
-        ShaderParam.addBinding(this, 'distortion')
-            .on('change', () => this.object.material.uniforms.uDistortionStrength.value = this.distortion ? 1 : 0)
+        ShaderParam.addBinding(this, 'distortion', {min: 0, max: 1, step: 0.001})
+            .on('change', () => this.object.material.uniforms.uDistortionStrength.value = this.distortion)
 
-        ShaderParam.addBinding(this, 'speed', {min: 0, max: 2})
+        ShaderParam.addBinding(this, 'distortionFrequency', {min: 0, max: 1, step: 0.001})
+            .on('change', () => this.object.material.uniforms.uDistortionFrequency.value = this.distortionFrequency)
+
+        ShaderParam.addBinding(this, 'speed', {min: 0, max: 3, step: 0.001})
             .on('change', () => this.object.material.uniforms.uPopSpeed.value = this.speed)
 
-        ShaderParam.addBinding(this, 'popNoiseFrequency', {min: 0.1, max: 2})
+        ShaderParam.addBinding(this, 'popNoiseFrequency', {min: 1, max: 30, step: 1})
             .on('change', () => this.object.material.uniforms.uPopNoiseFrequency.value = this.popNoiseFrequency)
     }
 

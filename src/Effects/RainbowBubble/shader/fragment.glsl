@@ -2,13 +2,14 @@ uniform float uTime;
 uniform float uPopSpeed;
 uniform float uPopTime;
 uniform sampler2D uNoiseTex;
+uniform float uSaturation;
 uniform float uHueOffset;
 uniform float uHueRange;
+uniform float uPopNoiseFrequency;
 
 varying vec3 vPosition;
 varying vec3 vNormal;
 varying vec2 vUv;
-varying float vPopNoise;
 
 float PI = 3.14159265358;
 
@@ -35,22 +36,23 @@ void main() {
     float hue = texture(uNoiseTex, vUv).r;
     vec3 rainbow = hsb2rgb(vec3(
         uHueOffset + sin(hue + uTime * 0.2) * uHueRange,
-        0.8,
+        uSaturation,
         1.0
     ));
 
     // Pop
-    float popNoise = smoothstep(0.99, 0.98, vPopNoise);
-    float popTime = uPopTime * uPopSpeed * 0.01;
-    float popAfterImgTime = smoothstep(0.5, 0.9, popTime); //0~1
+    float popNoise = texture2D(uNoiseTex, vec2(vUv.x, vUv.y) * uPopNoiseFrequency).r;
+    float popSubAlpha = smoothstep(0.45, 0.5, popNoise);
 
-    float popStartTime = (1.0 - step(0.1, uPopTime)); //popが始まって0.01秒後に０になる
-    emission *= popStartTime; //popが始まると０をかける
-    fresnel -= (1.0 - vPopNoise) * (1.0 - popStartTime) * 0.5; //popが始まるとvPopNoiseで０のところのfresnelを減らす
+    float disableEmission = uPopTime > 0.0 ? 0.0 : 1.0;
+    float popStarted = uPopTime > 0.0 ? 1.0 : 0.0;
+    emission *= disableEmission; //popが始まると０をかける
+
     alpha *= fresnel;
     alpha += emission;
-    vec4 finalColor = vec4(rainbow, alpha - popAfterImgTime - (popNoise * uPopTime));
-    // vec4 finalColor = vec4(vec3(1.0 - popAfterImgTime), 1.0);
+    alpha *= 1.0 - min(1.0, (popStarted * popSubAlpha) + popStarted * (popNoise * 0.3 + smoothstep(uPopTime * uPopSpeed * 0.1 * 0.8, 1.0, uPopTime * uPopSpeed)));
+
+    vec4 finalColor = vec4(rainbow, alpha);
 
     gl_FragColor = finalColor;
     #include <tonemapping_fragment>
