@@ -4,12 +4,13 @@ import fragmentShader from './shader/fragment.glsl'
 import charaTex from '/rounding-charas.webp'
 
 /**
- * @module RoundingCharas
+ * @module SpreadingCharas
  * @param {Object} [param] - Particle Parameters
  * @param {THREE.Scene | THREE.Mesh} [param.parent] - Parent Mesh to add
  * @param {number} [param.pixelRatio] - window.devicePixelRatio
  * @param {THREE.Vector2} [param.resolution] - THREE canvas Resolution
  * @param {THREE.Vector3} [param.position] - default Position
+ * @param {number} [param.spreadRate] - 0:from center pos to outside pos, 1:stay outside pos (no spreading)
  * @param {number} [param.speed] - Animation Speed
  * @param {number} [param.count] - Particle Count
  * @param {number} [param.size] - Particle Size Scale
@@ -19,12 +20,13 @@ import charaTex from '/rounding-charas.webp'
  * @param {Pane} [param.gui] - tweakpane instance
  */
 
-export default class RoundingCharas {
+export default class SpreadingCharas {
     constructor(param) {
         this.parent = param.parent || null
         this.pixelRatio = param.pixelRatio || 1
         this.resolution = param.resolution || new THREE.Vector2(1000, 750)
         this.position = param.position || new THREE.Vector3(0, 0, 0)
+        this.spreadRate = param.spreadRate || 0.5
         this.speed = param.speed || 1
         this.count = param.count || 9
         this.size = param.size || 1
@@ -103,6 +105,7 @@ export default class RoundingCharas {
         uniforms.uSize = { value: this.PARTICLE_SIZE }
         uniforms.uTexture = { value: this.texture }
         uniforms.uRadius = { value: this.radius }
+        uniforms.uSpreadRate = { value: this.spreadRate }
 
         const material = new THREE.ShaderMaterial({
             transparent: true,

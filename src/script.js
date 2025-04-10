@@ -14,6 +14,7 @@ import PoppingHeart from './Effects/PoppingHeart/PoppingHeart.js'
 import PoppingCharas from './Effects/PoppingCharas/PoppingCharas.js'
 import Confetti from './Effects/Confetti/Confetti.js'
 import RoundingCharas from './Effects/RoundingCharas/RoundingCharas.js'
+import SpreadingCharas from './Effects/SpreadingCharas/SpreadingCharas.js'
 
 import particleVertexShader from './Effects/GPGPU/shaders/particles/vertex.glsl'
 import particleFragmentShader from './Effects/GPGPU/shaders/particles/fragment.glsl'
@@ -337,6 +338,18 @@ items.roundingCharas = new RoundingCharas({
     gui: pane.addFolder({ title: 'Rounding Charas', expanded: false, index: 18 })
 })
 
+// Spreading Charas
+items.spreadingCharas = new SpreadingCharas({
+    parent: scene,
+    position: new THREE.Vector3(0, 2, 5),
+    pixelRatio: sizes.pixelRatio,
+    resolution: sizes.resolution,
+    spreadRate: 0.5,
+    size: 10,
+    radius: 10,
+    gui: pane.addFolder({ title: 'Spreading Charas', expanded: false, index: 19 })
+})
+
 /**
  * Model
  */
@@ -380,6 +393,8 @@ const render = () =>
     items.roundingCharas.update(delta)
     // Update poppingCharas
     items.poppingCharas.update(delta)
+    // Update spreadingCharas
+    items.spreadingCharas.update(delta)
     
     
     // Rotate objects
