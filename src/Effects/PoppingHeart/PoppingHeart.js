@@ -29,7 +29,7 @@ export default class PoppingHeart {
         this.size = param.size || 1
         this.height = param.height || 1
         this.texture = param.texture || new THREE.TextureLoader().load(heartTex)
-        this.PARTICLE_SIZE = 1 * this.size
+        this.PARTICLE_SIZE = 1 * this.size * this.pixelRatio
 
         this.texture.flipY = false
         this.object

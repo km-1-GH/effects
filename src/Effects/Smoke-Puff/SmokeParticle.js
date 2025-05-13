@@ -170,8 +170,8 @@ export default class SmokeParticle {
 
         MeshParam.addBinding(this, 'speed', { min: 0.3, max: 2 })
 
-        ShaderParam.addBinding(this, 'size', { min: 0.8, max: 1.5 })
-            .on('change', () => { this.uniforms.uSize.value = this.PARTICLE_SIZE * this.size * this.pixelRatio })
+        ShaderParam.addBinding(this, 'size', { min: 0.1, max: 3 })
+            .on('change', () => { this.uniforms.uSize.value = 4 * this.size * this.pixelRatio })
 
         ShaderParam.addBinding(
             this.uniforms.uColor1, 'value', 

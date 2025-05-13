@@ -1,52 +1,37 @@
 import * as THREE from 'three'
 import vertexShader from './shader/vertex.glsl'
 import fragmentShader from './shader/fragment.glsl'
-import charaTex from '/rounding-charas.webp'
+import heartTex from '/heart.png'
 
 /**
- * @module SpreadingCharas
+ * @module JumpingOutHeart
  * @param {Object} [param] - Particle Parameters
  * @param {THREE.Scene | THREE.Mesh} [param.parent] - Parent Mesh to add
  * @param {number} [param.pixelRatio] - window.devicePixelRatio
  * @param {THREE.Vector2} [param.resolution] - THREE canvas Resolution
  * @param {THREE.Vector3} [param.position] - default Position
- * @param {number} [param.spreadRate] - 0:from center pos to outside pos, 1:stay outside pos (no spreading)
  * @param {number} [param.speed] - Animation Speed
  * @param {number} [param.count] - Particle Count
  * @param {number} [param.size] - Particle Size Scale
- * @param {number} [param.radius] - How high the Particle goes
- * @param {THREE.Texture} [param.texture] - Texture (3x3)
- * @param {number[]} [param.texOffsetIndex] - Index Array for Texture Offset (3x3)
+ * @param {number} [param.height] - How high the Particle goes
+ * @param {THREE.Texture} [param.texture] - Texture
  * @param {Pane} [param.gui] - tweakpane instance
  */
 
-export default class SpreadingCharas {
+export default class JumpingOutHeart {
     constructor(param) {
         this.parent = param.parent || null
         this.pixelRatio = param.pixelRatio || 1
         this.resolution = param.resolution || new THREE.Vector2(1000, 750)
         this.position = param.position || new THREE.Vector3(0, 0, 0)
-        this.spreadRate = param.spreadRate || 0.5
         this.speed = param.speed || 1
-        this.count = param.count || 9
+        this.count = param.count || 7
         this.size = param.size || 1
-        this.radius = param.radius || 1
-        this.texture = param.texture || new THREE.TextureLoader().load(charaTex)
-        this.texOffsetIndexArray = param.texOffsetIndex || [0, 1, 2, 3, 4, 5, 6, 7, 8]
+        this.height = param.height || 1
+        this.texture = param.texture || new THREE.TextureLoader().load(heartTex)
         this.PARTICLE_SIZE = 1 * this.size * this.pixelRatio
 
         this.texture.flipY = false
-        this.textureOffsets = [
-            { x: 0, y: 0 },
-            { x: 1/3, y: 0 },
-            { x: 2/3, y: 0 },
-            { x: 0, y: 1/3 },
-            { x: 1/3, y: 1/3 },
-            { x: 2/3, y: 1/3 },
-            { x: 0, y: 2/3 },
-            { x: 1/3, y: 2/3 },
-            { x: 2/3, y: 2/3 },
-        ]
         this.object
         this.create()
 
@@ -67,34 +52,29 @@ export default class SpreadingCharas {
          */
         const geometry = new THREE.BufferGeometry()
         const positions = new Float32Array(this.count * 3)
+        const scales = new Float32Array(this.count)
         const delay = new Float32Array(this.count)
-        const thetaAttribute = new Float32Array(this.count)
-        const texOffsets  = new Float32Array(this.count * 2)
+        const texRotateTheta = new Float32Array(this.count)
 
         for (let i = 0; i < this.count; i++) {
             const i3 = i * 3
-            const i2 = i * 2
 
             // position
-            const theta = Math.PI * 2 * i / this.count
-            positions[i3 + 0] = 0
-            positions[i3 + 1] = 0
-            positions[i3 + 2] = Math.random() * 0.01
-            // delay
-            delay[i] = i * (2 / this.count) + (Math.random() * 2 - 1)
-            // theta
-            thetaAttribute[i] = theta
-            // texture index
-            const offset = i % this.texOffsetIndexArray.length
-            texOffsets[i2 + 0] = this.textureOffsets[this.texOffsetIndexArray[offset]].x
-            texOffsets[i2 + 1] = this.textureOffsets[this.texOffsetIndexArray[offset]].y
+            const theta = Math.PI * 0.5 + (Math.random() * 2 - 1) * Math.PI * 0.3
+            const radius = Math.random() * 0.5 + 0.5
+            positions[i3 + 0] = Math.cos(theta) * radius * 0.02
+            positions[i3 + 1] = Math.sin(theta) * radius * 0.01
+            positions[i3 + 2] = Math.random() * 0.001
+
+            scales[i] = 0.3 + Math.random() * 0.7
+            delay[i] = Math.random() * 1.4
+            texRotateTheta[i] = Math.random() * Math.PI * 2
         }
 
-
         geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3))
+        geometry.setAttribute('aScale', new THREE.BufferAttribute(scales, 1))
         geometry.setAttribute('aDelay', new THREE.BufferAttribute(delay, 1))
-        geometry.setAttribute('aTheta', new THREE.BufferAttribute(thetaAttribute, 1))
-        geometry.setAttribute('aTexOffset', new THREE.BufferAttribute(texOffsets, 2))
+        geometry.setAttribute('aTexRotateTheta', new THREE.BufferAttribute(texRotateTheta, 1))
 
         /**
          * material
@@ -104,8 +84,7 @@ export default class SpreadingCharas {
         uniforms.uResolution = { value: this.resolution }
         uniforms.uSize = { value: this.PARTICLE_SIZE }
         uniforms.uTexture = { value: this.texture }
-        uniforms.uRadius = { value: this.radius }
-        uniforms.uSpreadRate = { value: this.spreadRate }
+        uniforms.uHeight = { value: this.height }
 
         const material = new THREE.ShaderMaterial({
             transparent: true,
@@ -135,22 +114,18 @@ export default class SpreadingCharas {
     update(delta) {
         if (!this.active) return
 
-        this.elapsed += delta * this.speed
+        this.elapsed  += delta * this.speed
         this.object.material.uniforms.uTime.value = this.elapsed
-    }
 
-    stop() {
-        this.active = false
-        this.object.visible = false
+        if (this.elapsed > 2) {
+            this.active = false
+            this.object.visible = false
+        }
     }
 
     setupGUI(pane) {
         pane.addButton({ title: 'Activate' }).on('click', () => {
             if (!this.active) this.activate()
-        })
-
-        pane.addButton({ title: 'Stop' }).on('click', () => { 
-            if (this.active) this.stop() 
         })
 
         const tabs = pane.addTab({ pages: [ { title: 'Mesh'}, {title: 'Shader'} ] })
@@ -169,11 +144,11 @@ export default class SpreadingCharas {
                 this.create()
             })
 
-        ShaderParam.addBinding(this, 'size', { min: 0, max: 10})
+        ShaderParam.addBinding(this, 'size', { min: 0, max: 3})
             .on('change', () => { this.object.material.uniforms.uSize.value = this.size })
 
-        ShaderParam.addBinding(this, 'radius', { min: 0, max: 10})
-            .on('change', () => { this.object.material.uniforms.uRadius.value = this.radius })
+        ShaderParam.addBinding(this, 'height', { min: 0, max: 3})
+            .on('change', () => { this.object.material.uniforms.uHeight.value = this.height })
 
     }
 }

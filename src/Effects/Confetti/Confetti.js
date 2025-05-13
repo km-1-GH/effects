@@ -6,17 +6,17 @@ import confettiTex from '/confetti.png'
 /**
  * @module Confetti
  * @param {Object} [param] - Parameters
- * @param {THREE.Scene | THREE.Mesh} [param.parent] - Parent Mesh to add
- * @param {number} [param.pixelRatio] - window.devicePixelRatio
- * @param {THREE.Vector2} [param.resolution] - THREE canvas Resolution
- * @param {THREE.Vector3} [param.position] - default Position
- * @param {number} [param.count] - Particle Count
- * @param {number} [param.size] - Particle Size Scale
- * @param {number} [param.hueOffset] - Hue Offset
- * @param {number} [param.hueRange] - Hue Range
- * @param {number} [param.saturation] - Saturation
- * @param {THREE.Vector3} [param.direction] - Pop Direction
- * @param {number} [param.duration] - How long the Particle pops
+ * @param {THREE.Scene | THREE.Mesh} [param.parent] - Parent Mesh to add, default: null
+ * @param {number} [param.pixelRatio] - window.devicePixelRatio, default: 1
+ * @param {THREE.Vector2} [param.resolution] - THREE canvas Resolution, default: new THREE.Vector2(1000, 750)
+ * @param {THREE.Vector3} [param.position] - default Position, default: new THREE.Vector3(0, 0, 0)
+ * @param {number} [param.count] - Particle Count, default: 30
+ * @param {number} [param.size] - Particle Size Scale, default: 1
+ * @param {number} [param.hueOffset] - Hue Offset, default: 0
+ * @param {number} [param.hueRange] - Hue Range, default: 1
+ * @param {number} [param.saturation] - Saturation, default: 0.5
+ * @param {THREE.Vector3} [param.direction] - Pop Direction, default: new THREE.Vector3(0, 1, 0)
+ * @param {number} [param.duration] - How long the Particle pops, default:10
  * @param {THREE.Texture} [param.texture] - Texture
  * @param {Pane} [param.gui] - tweakpane instance
  */
@@ -29,6 +29,7 @@ export default class Confetti {
         this.count = param.count || 30
         this.size = param.size || 1
         this.texture = param.texture || new THREE.TextureLoader().load(confettiTex)
+        this.direction = param.direction || new THREE.Vector3(0, 1, 0)
         
         this.PARTICLE_SIZE = 1 * this.size * this.pixelRatio
         this.texture.flipY = false
@@ -38,7 +39,7 @@ export default class Confetti {
             uResolution: { value: param.resolution || new THREE.Vector2(1000, 750) },
             uSize: { value: this.PARTICLE_SIZE },
             uTexture: { value: this.texture },
-            uDirection: { value: param.direction || new THREE.Vector3(0, 1, 0) },
+            uDirection: { value: this.direction },
             uHueOffset: { value:  param.hueOffset || 0 },
             uHueRange: { value: param.hueRange || 1 },
             uSaturation: { value: param.saturation || 0.5 },
@@ -110,8 +111,9 @@ export default class Confetti {
         return object
     }
 
-    activate(position=this.position) {
+    activate(position=this.position, direction=this.direction) {
         this.object.position.copy(position)
+        this.uniforms.uDirection.value = direction
         this.active = true
         this.object.visible = true
         this.elapsed = 0
@@ -154,7 +156,11 @@ export default class Confetti {
                 this.object = this.create()
             })
 
-        pane.addBinding(this.uniforms.uSize, 'value', { min: 0, max: 3, label: 'uSize'})
+        pane.addBinding(this, 'size', { min: 0.1, max: 1, step: 0.001 })
+            .on('change', value => {
+                this.uniforms.uSize.value = 1 * value.value * this.pixelRatio
+            })
+
 
         pane.addBinding(this.uniforms.uHueOffset, 'value', { min: 0, max: 1, step: 0.01, label: 'uHueOffset'})
 

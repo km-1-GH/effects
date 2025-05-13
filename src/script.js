@@ -10,6 +10,7 @@ import Flame from './Effects/Flame/Flame.js'
 import HologramMaterial from './Effects/Hologram/HologramMaterial.js'
 import RainbowBubble from './Effects/RainbowBubble/RainbowBubble.js'
 import Fire from './Effects/Fire/Fire.js'
+import jumpingOutHeart from './Effects/JumpingOutHeart/JumpingOutHeart.js'
 import PoppingHeart from './Effects/PoppingHeart/PoppingHeart.js'
 import PoppingCharas from './Effects/PoppingCharas/PoppingCharas.js'
 import Confetti from './Effects/Confetti/Confetti.js'
@@ -301,6 +302,15 @@ gltfLoader.load('./suzanne.glb', (gltf) => {
     }
 )
 
+// Jumping Out Heart
+items.jumpingOutHeart = new jumpingOutHeart({
+    parent: scene,
+    position: new THREE.Vector3(0, 4, 0),
+    pixelRatio: sizes.pixelRatio,
+    resolution: sizes.resolution,
+    gui: pane.addFolder({ title: 'Jumping Out Heart', expanded: false, index: 21 })
+})
+
 // Popping Heart
 items.poppingHeart = new PoppingHeart({
     parent: scene,
@@ -310,13 +320,13 @@ items.poppingHeart = new PoppingHeart({
     gui: pane.addFolder({ title: 'Popping Heart', expanded: false, index: 16 })
 })
 
-// Popping Heart
+// Popping Charas
 items.poppingCharas = new PoppingCharas({
     parent: scene,
     position: new THREE.Vector3(-1, 3, 5),
     pixelRatio: sizes.pixelRatio,
     resolution: sizes.resolution,
-    gui: pane.addFolder({ title: 'Popping Charas', expanded: false, index: 16 })
+    gui: pane.addFolder({ title: 'Popping Charas', expanded: false, index: 20 })
 })
 
 // Confetti
@@ -385,6 +395,8 @@ const render = () =>
     items.flame.update(delta)
     // Update hologramMaterial
     hologramMaterial.material.uniforms.uTime.value = elapsed
+    // Update JumpingOutHeart
+    items.jumpingOutHeart.update(delta)
     // Update poppingHeart
     items.poppingHeart.update(delta)
     // Update confetti

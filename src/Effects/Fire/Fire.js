@@ -38,7 +38,7 @@ export default class Fire {
         
         this.color1 = new THREE.Color(color1),
         this.color2 = new THREE.Color(color2),
-        this.PARTICLE_SIZE = 3.4 * this.size
+        this.PARTICLE_SIZE = 3.4 * this.size * this.pixelRatio
         this.noiseTex = new THREE.TextureLoader().load(noise)
         this.noiseTex.wrapS = this.noiseTex.wrapT = THREE.RepeatWrapping
         this.flameTex = new THREE.TextureLoader().load(flame4)
@@ -201,11 +201,14 @@ export default class Fire {
 
         MeshParam.addBinding(this, 'speed', {min: 0.1, max: 2})
 
-        MeshParam.addBinding(this, 'scale', {min: 0.1, max: 5})
+        MeshParam.addBinding(this, 'scale', {min: 0.01, max: 5})
             .on('change', value => { this.object.scale.setScalar(value.value) })
 
         ShaderParam.addBinding(this, 'size', { min: 0.1, max: 3 })
-            .on('change', () => { this.object.material.uniforms.uSize.value = this.PARTICLE_SIZE * this.size })
+            .on('change', (value) => { 
+                this.PARTICLE_SIZE = 3.4 * value.value * this.pixelRatio
+                this.object.material.uniforms.uSize.value = this.PARTICLE_SIZE 
+            })
 
         ShaderParam.addBinding(this, 'particleCount', { min: 10, max: 70, step: 1 })
             .on('change', () => { 

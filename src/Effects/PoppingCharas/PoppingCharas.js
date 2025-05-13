@@ -31,7 +31,7 @@ export default class PoppingCharas {
         this.height = param.height || 1
         this.texture = param.texture || new THREE.TextureLoader().load(charaTex)
         this.texOffsetIndexArray = param.texOffsetIndex || [0, 1, 2, 3, 4, 5, 6, 7, 8]
-        this.PARTICLE_SIZE = 1 * this.size
+        this.PARTICLE_SIZE = 1 * this.size * this.pixelRatio
 
         this.texture.flipY = false
         this.textureOffsets = [
@@ -73,7 +73,7 @@ export default class PoppingCharas {
             const i2 = i * 2
 
             // position
-            positions[i3 + 0] = (Math.random() * 0.7) * (Math.floor(i % 2) * 2 - 1) // -1~-0.5 or 0.5~1
+            positions[i3 + 0] = (Math.random() * 0.5) * (Math.floor(i % 2) * 2 - 1)
             positions[i3 + 1] = 0
             positions[i3 + 2] = (Math.random() * 2 - 1) * 0.02
             // delay

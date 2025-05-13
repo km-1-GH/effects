@@ -31,7 +31,7 @@ export default class RoundingCharas {
         this.radius = param.radius || 1
         this.texture = param.texture || new THREE.TextureLoader().load(charaTex)
         this.texOffsetIndexArray = param.texOffsetIndex || [0, 1, 2, 3, 4, 5, 6, 7, 8]
-        this.PARTICLE_SIZE = 1 * this.size
+        this.PARTICLE_SIZE = 1 * this.size * this.pixelRatio
 
         this.texture.flipY = false
         this.textureOffsets = [
