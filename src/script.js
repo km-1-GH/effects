@@ -20,6 +20,7 @@ import SpreadingCharas from './Effects/SpreadingCharas/SpreadingCharas.js'
 import particleVertexShader from './Effects/GPGPU/shaders/particles/vertex.glsl'
 import particleFragmentShader from './Effects/GPGPU/shaders/particles/fragment.glsl'
 import gpgpuParticleShader from './Effects/GPGPU/shaders/gpgpu/particles.glsl'
+import Beam from './Effects/Beam/Beam.ts'
 
 /**
  * Sizes
@@ -134,6 +135,11 @@ const roundedSquare = new THREE.Mesh(
 )
 roundedSquare.position.set(0, 5, 0)
 scene.add(roundedSquare)
+
+/**
+ * Beam: マウスクリック位置からround square meshへのビーム
+ */
+const beam = new Beam(roundedSquare)
 
 
 /**

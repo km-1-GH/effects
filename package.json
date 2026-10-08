@@ -8,6 +8,8 @@
     "build": "vite build"
   },
   "devDependencies": {
+    "@types/three": "^0.160.0",
+    "typescript": "^7.0.2",
     "vite": "^5.0.12",
     "vite-plugin-glsl": "^1.2.1"
   },
