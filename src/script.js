@@ -139,7 +139,15 @@ scene.add(roundedSquare)
 /**
  * Beam: マウスクリック位置からround square meshへのビーム
  */
-const beam = new Beam(roundedSquare)
+items.beam = new Beam({
+    parent: scene,
+    target: roundedSquare,
+    camera,
+    canvas,
+    pixelRatio: sizes.pixelRatio,
+    resolution: sizes.resolution,
+    gui: pane.addFolder({ title: 'Beam', expanded: false, index: 22 })
+})
 
 
 /**
@@ -413,7 +421,9 @@ const render = () =>
     items.poppingCharas.update(delta)
     // Update spreadingCharas
     items.spreadingCharas.update(delta)
-    
+    // Update beam
+    items.beam.update(delta)
+
     
     // Rotate objects
     if(suzanne) {
