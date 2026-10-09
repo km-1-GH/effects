@@ -142,20 +142,32 @@ scene.add(roundedSquare)
  */
 const beamFolder = pane.addFolder({ title: 'Beam', expanded: false, index: 22 })
 const beamSwitchButton = beamFolder.addButton({ title: '' })
-const beamParam = {
+
+const beamTypes = [
+    { name: 'Sparkle', folder: beamFolder.addFolder({ title: 'Sparkle' }) },
+    { name: 'Freeze', folder: beamFolder.addFolder({ title: 'Freeze' }) },
+]
+
+beamTypes[0].effect = new BeamSparkle({ 
+    parent: scene,
+    listenClick: true,
+    camera,
+    canvas,
+    pixelRatio: sizes.pixelRatio,
+    resolution: sizes.resolution,
+    gui: beamTypes[0].folder 
+})
+beamTypes[0].effect.setTargetPos(roundedSquare.position)
+
+beamTypes[1].effect = new BeamFreeze({ 
     parent: scene,
     target: roundedSquare,
     camera,
     canvas,
     pixelRatio: sizes.pixelRatio,
     resolution: sizes.resolution,
-}
-const beamTypes = [
-    { name: 'Sparkle', folder: beamFolder.addFolder({ title: 'Sparkle' }) },
-    { name: 'Freeze', folder: beamFolder.addFolder({ title: 'Freeze' }) },
-]
-beamTypes[0].effect = new BeamSparkle({ ...beamParam, gui: beamTypes[0].folder })
-beamTypes[1].effect = new BeamFreeze({ ...beamParam, gui: beamTypes[1].folder })
+    gui: beamTypes[1].folder 
+})
 items.beams = beamTypes.map((type) => type.effect)
 
 // クリックで撃つのは選択中のビームだけ
@@ -445,7 +457,7 @@ const render = () =>
     items.spreadingCharas.update(delta)
     // Update beam
     // 切り替え前に撃った分も最後まで再生する
-    items.beams.forEach((beam) => beam.update(delta))
+    items.beams.forEach((beam) => beam.update())
 
     
     // Rotate objects

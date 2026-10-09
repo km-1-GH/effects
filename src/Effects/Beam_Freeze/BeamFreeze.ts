@@ -53,7 +53,8 @@ type BeamParams = Required<Pick<BeamParam,
 type ShaderMesh = THREE.Mesh<THREE.BufferGeometry, THREE.ShaderMaterial>
 
 interface Shot {
-    elapsed: number
+    /** 発射時刻(performance.now() のミリ秒) */
+    startTime: number
     hit: boolean
     start: THREE.Vector3
     beam: ShaderMesh
@@ -177,7 +178,7 @@ export default class BeamFreeze {
         const iceColor = new THREE.Color(this.params.iceColor)
 
         const shot: Shot = {
-            elapsed: 0,
+            startTime: performance.now(),
             hit: false,
             start: start.clone(),
             beam: this.createBeam(color),
@@ -190,7 +191,7 @@ export default class BeamFreeze {
         shot.muzzleFlash.visible = true
 
         this.shots.push(shot)
-        this.update(0)
+        this.update()
     }
 
     /**
@@ -286,8 +287,11 @@ export default class BeamFreeze {
     /**
      * Update
      */
-    update(delta: number) {
+    update() {
         if (this.shots.length === 0) return
+
+        // 呼び出し元のdeltaは端末や負荷でばらつくので、発射時刻からの経過時間で進める
+        const now = performance.now()
 
         // ターゲットが動いても追従する
         const end = this.getTargetCenter(this.targetCenter)
@@ -295,8 +299,7 @@ export default class BeamFreeze {
         const travel = this.params.travelDuration
 
         for (const shot of [...this.shots]) {
-            shot.elapsed += delta
-            const t = shot.elapsed
+            const t = (now - shot.startTime) / 1000
 
             // Beam: 加速しながら飛んで、到達後は尾が吸い込まれる
             const progress = Math.min(t / travel, 1)

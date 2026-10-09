@@ -8,35 +8,35 @@ import sparkleVertexShader from './shader/sparkle/vertex.glsl'
 import sparkleFragmentShader from './shader/sparkle/fragment.glsl'
 
 export interface BeamParam {
-    /** The target object for the beam effect */
-    target: THREE.Object3D
-    /** Camera used to convert the click position */
-    camera: THREE.Camera
+    /** Camera used to convert the click position. 後から setCamera でも設定できる */
+    camera?: THREE.Camera | null
     /** Canvas to listen click events */
-    canvas: HTMLCanvasElement
-    /** Parent object to add effects to @default null */
+    canvas?: HTMLCanvasElement
+    /** Fire on canvas click */
+    listenClick?: boolean
+    /** Parent object to add effects to */
     parent?: THREE.Object3D | null
-    /** window.devicePixelRatio @default 1 */
+    /** window.devicePixelRatio */
     pixelRatio?: number
-    /** THREE canvas resolution @default new THREE.Vector2(1000, 750) */
+    /** THREE canvas resolution */
     resolution?: THREE.Vector2
-    /** Beam color @default '#ffd84d' */
+    /** Beam color */
     color?: string
-    /** Second sparkle color @default '#7fe3ff' */
+    /** Second sparkle color */
     sparkleColor?: string
-    /** Beam width @default 0.16 */
+    /** Beam width */
     width?: number
-    /** Seconds to reach the target @default 0.4 */
+    /** Seconds to reach the target */
     travelDuration?: number
-    /** Sparkle count @default 14 */
+    /** Sparkle count */
     sparkleCount?: number
-    /** Sparkle duration (seconds) @default 0.6 */
+    /** Sparkle duration (seconds) */
     sparkleDuration?: number
-    /** Sparkle size @default 0.8 */
+    /** Sparkle size */
     sparkleSize?: number
-    /** Sparkle spread @default 1.8 */
+    /** Sparkle spread */
     sparkleSpread?: number
-    /** Sparkle gravity @default 1 */
+    /** Sparkle gravity */
     sparkleGravity?: number
     /** tweakpane folder */
     gui?: FolderApi
@@ -52,9 +52,11 @@ type ShaderMesh = THREE.Mesh<THREE.BufferGeometry, THREE.ShaderMaterial>
 type ShaderPoints = THREE.Points<THREE.BufferGeometry, THREE.ShaderMaterial>
 
 interface Shot {
-    elapsed: number
+    /** 発射時刻(performance.now() のミリ秒) */
+    startTime: number
     hit: boolean
     start: THREE.Vector3
+    end: THREE.Vector3
     beam: ShaderMesh
     muzzleFlash: ShaderMesh
     impactFlash: ShaderMesh
@@ -71,23 +73,26 @@ const FLASH_DURATION = 0.3
 const FLASH_SIZE = 1.6
 // sparkles
 const SPARKLE_MAX_DELAY = 0.06
+const SPARKLE_DEFAULT_SPREAD = 1.8
 // クリックとドラッグ(OrbitControls)を区別する距離(px)
 const CLICK_TOLERANCE = 6
 
 /**
- * Beam effect from mouse click position to the target.
+ * Beam effect from start position to the target position.
  * The beam reaches the target, pops, and scatters sparkles.
  */
 export default class BeamSparkle {
-    target: THREE.Object3D
-    camera: THREE.Camera
-    canvas: HTMLCanvasElement
+    /** クリック・fireFromScreenで撃つときの到達先(ワールド座標) */
+    targetPos = new THREE.Vector3()
+    camera: THREE.Camera | null
+    canvas: HTMLCanvasElement | null
+    readonly listenClick: boolean
     parent: THREE.Object3D | null
     pixelRatio: number
     resolution: THREE.Vector2
 
     params: BeamParams
-    
+
     /** false のときはクリックで撃たない */
     enabled = true
 
@@ -99,40 +104,48 @@ export default class BeamSparkle {
     private raycaster = new THREE.Raycaster()
     private plane = new THREE.Plane()
     private pointerDown = new THREE.Vector2()
-    private targetCenter = new THREE.Vector3()
-    private box = new THREE.Box3()
 
     constructor(param: BeamParam) {
-        this.target = param.target
-        this.camera = param.camera
-        this.canvas = param.canvas
+        this.camera = param.camera ?? null
+        this.canvas = param.canvas || null
+        this.listenClick = (param.canvas && param.listenClick) || false
         this.parent = param.parent ?? null
         this.pixelRatio = param.pixelRatio ?? 1
-        this.resolution = param.resolution ?? new THREE.Vector2(1000, 750)
+        this.resolution = param.resolution || new THREE.Vector2(1000, 750)
 
         this.params = {
-            color: param.color ?? '#ffd84d',
-            sparkleColor: param.sparkleColor ?? '#7fe3ff',
+            color: param.color || '#ffd84d',
+            sparkleColor: param.sparkleColor || '#7fe3ff',
             width: param.width ?? 0.3,
             travelDuration: Math.max(param.travelDuration ?? 0.1, 0.01),
             sparkleCount: param.sparkleCount ?? 11,
             sparkleDuration: param.sparkleDuration ?? 0.85,
             sparkleSize: param.sparkleSize ?? 0.8,
-            sparkleSpread: param.sparkleSpread ?? 1.8,
+            sparkleSpread: param.sparkleSpread ?? SPARKLE_DEFAULT_SPREAD,
             sparkleGravity: param.sparkleGravity ?? 1,
         }
 
         this.beamGeometry = this.createBeamGeometry()
         this.flashGeometry = new THREE.PlaneGeometry(1, 1)
 
-        this.canvas.addEventListener('pointerdown', this.onPointerDown)
-        this.canvas.addEventListener('pointerup', this.onPointerUp)
+        if (this.listenClick) {
+            this.canvas?.addEventListener('pointerdown', this.onPointerDown)
+            this.canvas?.addEventListener('pointerup', this.onPointerUp)
+        }
 
         if (param.gui) this.setupGUI(param.gui)
     }
 
     resize(resolution: THREE.Vector2) {
         this.resolution.set(resolution.x, resolution.y)
+    }
+
+    setCamera(camera: THREE.Camera) {
+        this.camera = camera
+    }
+
+    setTargetPos(position: THREE.Vector3) {
+        this.targetPos.copy(position)
     }
 
     /**
@@ -152,9 +165,10 @@ export default class BeamSparkle {
 
     /**
      * 画面上の座標からビームを撃つ
-     * 開始位置はクリックした方向のレイと、ターゲット中心を通りカメラに正対する平面との交点
+     * 開始位置はクリックした方向のレイと、到達先を通りカメラに正対する平面との交点
      */
-    fireFromScreen(clientX: number, clientY: number) {
+    fireFromScreen(clientX: number, clientY: number, end: THREE.Vector3 = this.targetPos) {
+        if (!this.canvas || !this.camera) return
         const rect = this.canvas.getBoundingClientRect()
         const ndc = new THREE.Vector2(
             ((clientX - rect.left) / rect.width) * 2 - 1,
@@ -163,25 +177,26 @@ export default class BeamSparkle {
         this.raycaster.setFromCamera(ndc, this.camera)
 
         const normal = this.camera.getWorldDirection(new THREE.Vector3())
-        this.plane.setFromNormalAndCoplanarPoint(normal, this.getTargetCenter(this.targetCenter))
+        this.plane.setFromNormalAndCoplanarPoint(normal, end)
 
         const start = new THREE.Vector3()
         if (!this.raycaster.ray.intersectPlane(this.plane, start)) return
 
-        this.fire(start)
+        this.fire(start, end)
     }
 
-    fire(start: THREE.Vector3) {
+    fire(start: THREE.Vector3, end: THREE.Vector3) {
         const color = new THREE.Color(this.params.color)
         const sparkleColor = new THREE.Color(this.params.sparkleColor)
 
         const shot: Shot = {
-            elapsed: 0,
+            startTime: performance.now(),
             hit: false,
             start: start.clone(),
+            end: end.clone(),
             beam: this.createBeam(color),
-            muzzleFlash: this.createFlash(color, MUZZLE_SIZE, MUZZLE_DURATION),
-            impactFlash: this.createFlash(color, FLASH_SIZE, FLASH_DURATION),
+            muzzleFlash: this.createFlash(color, MUZZLE_SIZE * Math.max(this.params.sparkleSpread / SPARKLE_DEFAULT_SPREAD, 0.6), MUZZLE_DURATION),
+            impactFlash: this.createFlash(color, FLASH_SIZE * (this.params.sparkleSpread / SPARKLE_DEFAULT_SPREAD), FLASH_DURATION),
             sparkles: this.createSparkles(color, sparkleColor),
         }
 
@@ -189,7 +204,9 @@ export default class BeamSparkle {
         shot.muzzleFlash.visible = true
 
         this.shots.push(shot)
-        this.update(0)
+        this.update()
+
+        return shot
     }
 
     /**
@@ -200,9 +217,9 @@ export default class BeamSparkle {
         const geometry = new THREE.BufferGeometry()
         geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array([
             0, -1, 0,
-            0,  1, 0,
+            0, 1, 0,
             1, -1, 0,
-            1,  1, 0,
+            1, 1, 0,
         ]), 3))
         geometry.setIndex([0, 2, 1, 1, 2, 3])
         return geometry
@@ -296,23 +313,19 @@ export default class BeamSparkle {
         return this.addEffectObject(new THREE.Points(geometry, material))
     }
 
-    private getTargetCenter(target: THREE.Vector3) {
-        return this.box.setFromObject(this.target).getCenter(target)
-    }
-
     /**
      * Update
      */
-    update(delta: number) {
+    update() {
         if (this.shots.length === 0) return
 
-        // ターゲットが動いても追従する
-        const end = this.getTargetCenter(this.targetCenter)
+        // 呼び出し元のdeltaは端末や負荷でばらつくので、発射時刻からの経過時間で進める
+        const now = performance.now()
         const travel = this.params.travelDuration
 
         for (const shot of [...this.shots]) {
-            shot.elapsed += delta
-            const t = shot.elapsed
+            const { start, end } = shot
+            const t = (now - shot.startTime) / 1000
 
             // Beam: 加速しながら飛んで、到達後は尾が吸い込まれる
             const progress = Math.min(t / travel, 1)
@@ -323,8 +336,8 @@ export default class BeamSparkle {
                 : THREE.MathUtils.lerp(1 - TAIL_RATIO, 1, absorb)
 
             const beamUniforms = shot.beam.material.uniforms
-            beamUniforms.uHead.value.lerpVectors(shot.start, end, head)
-            beamUniforms.uTail.value.lerpVectors(shot.start, end, tail)
+            beamUniforms.uHead.value.lerpVectors(start, end, head)
+            beamUniforms.uTail.value.lerpVectors(start, end, tail)
             beamUniforms.uTime.value = t
             shot.beam.visible = absorb < 1
 
@@ -340,8 +353,11 @@ export default class BeamSparkle {
 
                 const sparkleUniforms = shot.sparkles.material.uniforms
                 sparkleUniforms.uCenter.value.copy(end)
-                sparkleUniforms.uRight.value.setFromMatrixColumn(this.camera.matrixWorld, 0).normalize()
-                sparkleUniforms.uUp.value.setFromMatrixColumn(this.camera.matrixWorld, 1).normalize()
+                // カメラ未設定のときは初期値(ワールドのX/Y軸)のまま散らす
+                if (this.camera) {
+                    sparkleUniforms.uRight.value.setFromMatrixColumn(this.camera.matrixWorld, 0).normalize()
+                    sparkleUniforms.uUp.value.setFromMatrixColumn(this.camera.matrixWorld, 1).normalize()
+                }
                 shot.sparkles.visible = true
             }
 
@@ -368,8 +384,10 @@ export default class BeamSparkle {
     }
 
     dispose() {
-        this.canvas.removeEventListener('pointerdown', this.onPointerDown)
-        this.canvas.removeEventListener('pointerup', this.onPointerUp)
+        if (this.listenClick) {
+            this.canvas?.removeEventListener('pointerdown', this.onPointerDown)
+            this.canvas?.removeEventListener('pointerup', this.onPointerUp)
+        }
         for (const shot of [...this.shots]) this.removeShot(shot)
         this.beamGeometry.dispose()
         this.flashGeometry.dispose()
@@ -380,6 +398,7 @@ export default class BeamSparkle {
      */
     setupGUI(pane: FolderApi) {
         pane.addButton({ title: 'Fire (random)' }).on('click', () => {
+            if (!this.canvas) return
             const rect = this.canvas.getBoundingClientRect()
             this.fireFromScreen(
                 rect.left + rect.width * (0.1 + Math.random() * 0.8),
