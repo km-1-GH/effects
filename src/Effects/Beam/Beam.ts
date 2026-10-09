@@ -7,39 +7,46 @@ import flashFragmentShader from './shader/flash/fragment.glsl'
 import sparkleVertexShader from './shader/sparkle/vertex.glsl'
 import sparkleFragmentShader from './shader/sparkle/fragment.glsl'
 
-/**
- * @module Beam
- * Beam effect from mouse click position to the target.
- * The beam reaches the target, pops, and scatters sparkles.
- * @param {Object} param - Parameters
- * @param {THREE.Object3D} param.target - The target object for the beam effect
- * @param {THREE.Camera} param.camera - Camera used to convert the click position
- * @param {HTMLCanvasElement} param.canvas - Canvas to listen click events
- * @param {THREE.Scene | THREE.Mesh} [param.parent] - Parent Mesh to add, default: null
- * @param {number} [param.pixelRatio] - window.devicePixelRatio, default: 1
- * @param {THREE.Vector2} [param.resolution] - THREE canvas Resolution, default: new THREE.Vector2(1000, 750)
- * @param {string} [param.color] - Beam color, default: '#ffd84d'
- * @param {string} [param.sparkleColor] - Second sparkle color, default: '#7fe3ff'
- * @param {number} [param.width] - Beam width, default: 0.16
- * @param {number} [param.travelDuration] - Seconds to reach the target, default: 0.4
- * @param {number} [param.sparkleCount] - Sparkle count, default: 14
- * @param {Pane} [param.gui] - tweakpane instance
- */
-
 export interface BeamParam {
+    /** The target object for the beam effect */
     target: THREE.Object3D
+    /** Camera used to convert the click position */
     camera: THREE.Camera
+    /** Canvas to listen click events */
     canvas: HTMLCanvasElement
+    /** Parent object to add effects to @default null */
     parent?: THREE.Object3D | null
+    /** window.devicePixelRatio @default 1 */
     pixelRatio?: number
+    /** THREE canvas resolution @default new THREE.Vector2(1000, 750) */
     resolution?: THREE.Vector2
+    /** Beam color @default '#ffd84d' */
     color?: string
+    /** Second sparkle color @default '#7fe3ff' */
     sparkleColor?: string
+    /** Beam width @default 0.16 */
     width?: number
+    /** Seconds to reach the target @default 0.4 */
     travelDuration?: number
+    /** Sparkle count @default 14 */
     sparkleCount?: number
+    /** Sparkle duration (seconds) @default 0.6 */
+    sparkleDuration?: number
+    /** Sparkle size @default 0.8 */
+    sparkleSize?: number
+    /** Sparkle spread @default 1.8 */
+    sparkleSpread?: number
+    /** Sparkle gravity @default 1 */
+    sparkleGravity?: number
+    /** tweakpane folder */
     gui?: FolderApi
 }
+
+type BeamParams = Required<Pick<BeamParam,
+    'color' | 'sparkleColor' | 'width' | 'travelDuration' |
+    'sparkleCount' | 'sparkleDuration' | 'sparkleSize' |
+    'sparkleSpread' | 'sparkleGravity'
+>>
 
 type ShaderMesh = THREE.Mesh<THREE.BufferGeometry, THREE.ShaderMaterial>
 type ShaderPoints = THREE.Points<THREE.BufferGeometry, THREE.ShaderMaterial>
@@ -63,14 +70,14 @@ const MUZZLE_SIZE = 0.6
 const FLASH_DURATION = 0.3
 const FLASH_SIZE = 1.6
 // sparkles
-const SPARKLE_DURATION = 0.8
 const SPARKLE_MAX_DELAY = 0.06
-const SPARKLE_SIZE = 1.0
-const SPARKLE_SPREAD = 1.8
-const SPARKLE_GRAVITY = 0.5
 // クリックとドラッグ(OrbitControls)を区別する距離(px)
 const CLICK_TOLERANCE = 6
 
+/**
+ * Beam effect from mouse click position to the target.
+ * The beam reaches the target, pops, and scatters sparkles.
+ */
 export default class Beam {
     target: THREE.Object3D
     camera: THREE.Camera
@@ -79,14 +86,8 @@ export default class Beam {
     pixelRatio: number
     resolution: THREE.Vector2
 
-    params: {
-        color: string
-        sparkleColor: string
-        width: number
-        travelDuration: number
-        sparkleCount: number
-    }
-
+    params: BeamParams
+    
     shots: Shot[] = []
 
     private beamGeometry: THREE.BufferGeometry
@@ -102,16 +103,20 @@ export default class Beam {
         this.target = param.target
         this.camera = param.camera
         this.canvas = param.canvas
-        this.parent = param.parent || null
-        this.pixelRatio = param.pixelRatio || 1
-        this.resolution = param.resolution || new THREE.Vector2(1000, 750)
+        this.parent = param.parent ?? null
+        this.pixelRatio = param.pixelRatio ?? 1
+        this.resolution = param.resolution ?? new THREE.Vector2(1000, 750)
 
         this.params = {
-            color: param.color || '#ffd84d',
-            sparkleColor: param.sparkleColor || '#7fe3ff',
-            width: param.width || 0.16,
-            travelDuration: param.travelDuration || 0.4,
-            sparkleCount: param.sparkleCount || 14,
+            color: param.color ?? '#ffd84d',
+            sparkleColor: param.sparkleColor ?? '#7fe3ff',
+            width: param.width ?? 0.16,
+            travelDuration: Math.max(param.travelDuration ?? 0.4, 0.01),
+            sparkleCount: param.sparkleCount ?? 14,
+            sparkleDuration: param.sparkleDuration ?? 0.6,
+            sparkleSize: param.sparkleSize ?? 0.8,
+            sparkleSpread: param.sparkleSpread ?? 1.8,
+            sparkleGravity: param.sparkleGravity ?? 1,
         }
 
         this.beamGeometry = this.createBeamGeometry()
@@ -259,7 +264,7 @@ export default class Beam {
         for (let i = 0; i < count; i++) {
             // 均等に散らしつつ少しばらつかせる
             angles[i] = (i / count) * Math.PI * 2 + (Math.random() - 0.5) * (Math.PI / count)
-            speeds[i] = SPARKLE_SPREAD * (0.5 + Math.random() * 0.5) // 0.5 ~ 1
+            speeds[i] = this.params.sparkleSpread * (0.5 + Math.random() * 0.5) // 0.5 ~ 1
             scales[i] = 0.5 + Math.random() * 0.5 // 0.5 ~ 1
             random[i] = Math.random()
             delays[i] = Math.random() * SPARKLE_MAX_DELAY
@@ -277,10 +282,10 @@ export default class Beam {
             uRight: { value: new THREE.Vector3(1, 0, 0) },
             uUp: { value: new THREE.Vector3(0, 1, 0) },
             uResolution: { value: this.resolution },
-            uSize: { value: SPARKLE_SIZE * this.pixelRatio },
+            uSize: { value: this.params.sparkleSize * this.pixelRatio },
             uTime: { value: 0 },
-            uDuration: { value: SPARKLE_DURATION },
-            uGravity: { value: SPARKLE_GRAVITY },
+            uDuration: { value: this.params.sparkleDuration },
+            uGravity: { value: this.params.sparkleGravity },
             uColorA: { value: colorA },
             uColorB: { value: colorB },
         }, sparkleVertexShader, sparkleFragmentShader)
@@ -343,7 +348,7 @@ export default class Beam {
                 shot.impactFlash.visible = popTime < FLASH_DURATION
                 shot.sparkles.material.uniforms.uTime.value = popTime
 
-                if (popTime > SPARKLE_DURATION + SPARKLE_MAX_DELAY) this.removeShot(shot)
+                if (popTime > this.params.sparkleDuration + SPARKLE_MAX_DELAY) this.removeShot(shot)
             }
         }
     }
@@ -384,5 +389,9 @@ export default class Beam {
         pane.addBinding(this.params, 'width', { min: 0.02, max: 0.5, step: 0.01 })
         pane.addBinding(this.params, 'travelDuration', { min: 0.1, max: 2, step: 0.05 })
         pane.addBinding(this.params, 'sparkleCount', { min: 4, max: 40, step: 1 })
+        pane.addBinding(this.params, 'sparkleDuration', { min: 0.1, max: 7, step: 0.05 })
+        pane.addBinding(this.params, 'sparkleSize', { min: 0.1, max: 2, step: 0.05 })
+        pane.addBinding(this.params, 'sparkleSpread', { min: 0.1, max: 5, step: 0.1 })
+        pane.addBinding(this.params, 'sparkleGravity', { min: -1, max: 5, step: 0.1 })
     }
 }
