@@ -4,8 +4,8 @@ import beamVertexShader from './shader/beam/vertex.glsl'
 import beamFragmentShader from './shader/beam/fragment.glsl'
 import flashVertexShader from './shader/flash/vertex.glsl'
 import flashFragmentShader from './shader/flash/fragment.glsl'
-import sparkleVertexShader from './shader/sparkle/vertex.glsl'
-import sparkleFragmentShader from './shader/sparkle/fragment.glsl'
+import freezeVertexShader from './shader/freeze/vertex.glsl'
+import freezeFragmentShader from './shader/freeze/fragment.glsl'
 
 export interface BeamParam {
     /** The target object for the beam effect */
@@ -20,36 +20,37 @@ export interface BeamParam {
     pixelRatio?: number
     /** THREE canvas resolution @default new THREE.Vector2(1000, 750) */
     resolution?: THREE.Vector2
-    /** Beam color @default '#ffd84d' */
+    /** Beam color @default '#7fd8ff' */
     color?: string
-    /** Second sparkle color @default '#7fe3ff' */
-    sparkleColor?: string
+    /** Ice film color @default '#9fe6ff' */
+    iceColor?: string
+    /** Ice film opacity multiplier (cracks are not affected) @default 0.75 */
+    iceOpacity?: number
     /** Beam width @default 0.16 */
     width?: number
-    /** Seconds to reach the target @default 0.4 */
+    /** Seconds to reach the target @default 0.55 */
     travelDuration?: number
-    /** Sparkle count @default 14 */
-    sparkleCount?: number
-    /** Sparkle duration (seconds) @default 0.6 */
-    sparkleDuration?: number
-    /** Sparkle size @default 0.8 */
-    sparkleSize?: number
-    /** Sparkle spread @default 1.8 */
-    sparkleSpread?: number
-    /** Sparkle gravity @default 1 */
-    sparkleGravity?: number
+    /** Freeze duration including fade out (seconds) @default 0.7 */
+    freezeDuration?: number
+    /** Seconds for the ice to spread from the center to the edge @default 0.08 */
+    freezeSpreadDuration?: number
+    /** Ice film radius relative to the target bounding sphere @default 1.15 */
+    freezeRadius?: number
+    /** Radial crack count (0 = none) @default 0 */
+    crackCount?: number
+    /** Crystal facet density @default 2 */
+    crackScale?: number
     /** tweakpane folder */
     gui?: FolderApi
 }
 
 type BeamParams = Required<Pick<BeamParam,
-    'color' | 'sparkleColor' | 'width' | 'travelDuration' |
-    'sparkleCount' | 'sparkleDuration' | 'sparkleSize' |
-    'sparkleSpread' | 'sparkleGravity'
+    'color' | 'iceColor' | 'iceOpacity' | 'width' | 'travelDuration' |
+    'freezeDuration' | 'freezeSpreadDuration' | 'freezeRadius' |
+    'crackCount' | 'crackScale'
 >>
 
 type ShaderMesh = THREE.Mesh<THREE.BufferGeometry, THREE.ShaderMaterial>
-type ShaderPoints = THREE.Points<THREE.BufferGeometry, THREE.ShaderMaterial>
 
 interface Shot {
     elapsed: number
@@ -58,7 +59,7 @@ interface Shot {
     beam: ShaderMesh
     muzzleFlash: ShaderMesh
     impactFlash: ShaderMesh
-    sparkles: ShaderPoints
+    freeze: ShaderMesh
 }
 
 // beam
@@ -69,16 +70,14 @@ const MUZZLE_DURATION = 0.2
 const MUZZLE_SIZE = 0.6
 const FLASH_DURATION = 0.3
 const FLASH_SIZE = 1.6
-// sparkles
-const SPARKLE_MAX_DELAY = 0.06
 // クリックとドラッグ(OrbitControls)を区別する距離(px)
 const CLICK_TOLERANCE = 6
 
 /**
  * Beam effect from mouse click position to the target.
- * The beam reaches the target, pops, and scatters sparkles.
+ * The beam reaches the target and freezes it with a thin ice film.
  */
-export default class Beam {
+export default class BeamFreeze {
     target: THREE.Object3D
     camera: THREE.Camera
     canvas: HTMLCanvasElement
@@ -87,7 +86,10 @@ export default class Beam {
     resolution: THREE.Vector2
 
     params: BeamParams
-    
+
+    /** false のときはクリックで撃たない */
+    enabled = true
+
     shots: Shot[] = []
 
     private beamGeometry: THREE.BufferGeometry
@@ -98,6 +100,7 @@ export default class Beam {
     private pointerDown = new THREE.Vector2()
     private targetCenter = new THREE.Vector3()
     private box = new THREE.Box3()
+    private sphere = new THREE.Sphere()
 
     constructor(param: BeamParam) {
         this.target = param.target
@@ -108,15 +111,16 @@ export default class Beam {
         this.resolution = param.resolution ?? new THREE.Vector2(1000, 750)
 
         this.params = {
-            color: param.color ?? '#ffd84d',
-            sparkleColor: param.sparkleColor ?? '#7fe3ff',
+            color: param.color ?? '#7fd8ff',
+            iceColor: param.iceColor ?? '#9fe6ff',
+            iceOpacity: param.iceOpacity ?? 0.75,
             width: param.width ?? 0.16,
-            travelDuration: Math.max(param.travelDuration ?? 0.4, 0.01),
-            sparkleCount: param.sparkleCount ?? 14,
-            sparkleDuration: param.sparkleDuration ?? 0.6,
-            sparkleSize: param.sparkleSize ?? 0.8,
-            sparkleSpread: param.sparkleSpread ?? 1.8,
-            sparkleGravity: param.sparkleGravity ?? 1,
+            travelDuration: Math.max(param.travelDuration ?? 0.55, 0.01),
+            freezeDuration: param.freezeDuration ?? 0.7,
+            freezeSpreadDuration: param.freezeSpreadDuration ?? 0.08,
+            freezeRadius: param.freezeRadius ?? 1.15,
+            crackCount: param.crackCount ?? 0,
+            crackScale: param.crackScale ?? 2,
         }
 
         this.beamGeometry = this.createBeamGeometry()
@@ -141,7 +145,7 @@ export default class Beam {
     }
 
     private onPointerUp = (event: PointerEvent) => {
-        if (event.button !== 0) return
+        if (!this.enabled || event.button !== 0) return
         // ドラッグ(カメラ操作)のときは撃たない
         if (this.pointerDown.distanceTo(new THREE.Vector2(event.clientX, event.clientY)) > CLICK_TOLERANCE) return
         this.fireFromScreen(event.clientX, event.clientY)
@@ -170,7 +174,7 @@ export default class Beam {
 
     fire(start: THREE.Vector3) {
         const color = new THREE.Color(this.params.color)
-        const sparkleColor = new THREE.Color(this.params.sparkleColor)
+        const iceColor = new THREE.Color(this.params.iceColor)
 
         const shot: Shot = {
             elapsed: 0,
@@ -179,7 +183,7 @@ export default class Beam {
             beam: this.createBeam(color),
             muzzleFlash: this.createFlash(color, MUZZLE_SIZE, MUZZLE_DURATION),
             impactFlash: this.createFlash(color, FLASH_SIZE, FLASH_DURATION),
-            sparkles: this.createSparkles(color, sparkleColor),
+            freeze: this.createFreeze(iceColor),
         }
 
         shot.muzzleFlash.material.uniforms.uCenter.value.copy(start)
@@ -205,13 +209,18 @@ export default class Beam {
         return geometry
     }
 
-    private createEffectMaterial(uniforms: Record<string, THREE.IUniform>, vertexShader: string, fragmentShader: string) {
-        // ゲームのエフェクトらしく、加算合成で他の物体に隠れないように描く
+    private createEffectMaterial(
+        uniforms: Record<string, THREE.IUniform>,
+        vertexShader: string,
+        fragmentShader: string,
+        blending: THREE.Blending = THREE.AdditiveBlending,
+    ) {
+        // ゲームのエフェクトらしく、他の物体に隠れないように描く
         return new THREE.ShaderMaterial({
             transparent: true,
             depthWrite: false,
             depthTest: false,
-            blending: THREE.AdditiveBlending,
+            blending,
             side: THREE.DoubleSide,
             uniforms,
             vertexShader,
@@ -219,9 +228,9 @@ export default class Beam {
         })
     }
 
-    private addEffectObject<T extends THREE.Object3D>(object: T) {
+    private addEffectObject<T extends THREE.Object3D>(object: T, renderOrder = 10) {
         object.frustumCulled = false
-        object.renderOrder = 10
+        object.renderOrder = renderOrder
         object.visible = false
         if (this.parent) this.parent.add(object)
         return object
@@ -251,46 +260,23 @@ export default class Beam {
         return this.addEffectObject(new THREE.Mesh(this.flashGeometry, material))
     }
 
-    private createSparkles(colorA: THREE.Color, colorB: THREE.Color): ShaderPoints {
-        const count = this.params.sparkleCount
-        const geometry = new THREE.BufferGeometry()
-        const positions = new Float32Array(count * 3)
-        const angles = new Float32Array(count)
-        const speeds = new Float32Array(count)
-        const scales = new Float32Array(count)
-        const random = new Float32Array(count)
-        const delays = new Float32Array(count)
-
-        for (let i = 0; i < count; i++) {
-            // 均等に散らしつつ少しばらつかせる
-            angles[i] = (i / count) * Math.PI * 2 + (Math.random() - 0.5) * (Math.PI / count)
-            speeds[i] = this.params.sparkleSpread * (0.5 + Math.random() * 0.5) // 0.5 ~ 1
-            scales[i] = 0.5 + Math.random() * 0.5 // 0.5 ~ 1
-            random[i] = Math.random()
-            delays[i] = Math.random() * SPARKLE_MAX_DELAY
-        }
-
-        geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3))
-        geometry.setAttribute('aAngle', new THREE.BufferAttribute(angles, 1))
-        geometry.setAttribute('aSpeed', new THREE.BufferAttribute(speeds, 1))
-        geometry.setAttribute('aScale', new THREE.BufferAttribute(scales, 1))
-        geometry.setAttribute('aRandom', new THREE.BufferAttribute(random, 1))
-        geometry.setAttribute('aDelay', new THREE.BufferAttribute(delays, 1))
-
+    private createFreeze(color: THREE.Color): ShaderMesh {
+        // 白い膜でターゲットを覆いたいので通常のアルファ合成
         const material = this.createEffectMaterial({
             uCenter: { value: new THREE.Vector3() },
-            uRight: { value: new THREE.Vector3(1, 0, 0) },
-            uUp: { value: new THREE.Vector3(0, 1, 0) },
-            uResolution: { value: this.resolution },
-            uSize: { value: this.params.sparkleSize * this.pixelRatio },
+            uRadius: { value: 1 },
+            uColor: { value: color },
             uTime: { value: 0 },
-            uDuration: { value: this.params.sparkleDuration },
-            uGravity: { value: this.params.sparkleGravity },
-            uColorA: { value: colorA },
-            uColorB: { value: colorB },
-        }, sparkleVertexShader, sparkleFragmentShader)
+            uDuration: { value: this.params.freezeDuration },
+            uSpreadDuration: { value: Math.max(this.params.freezeSpreadDuration, 0.01) },
+            uCrackCount: { value: this.params.crackCount },
+            uCrackScale: { value: this.params.crackScale },
+            uSeed: { value: Math.random() },
+            uOpacity: { value: this.params.iceOpacity },
+        }, freezeVertexShader, freezeFragmentShader, THREE.NormalBlending)
 
-        return this.addEffectObject(new THREE.Points(geometry, material))
+        // ビームやフラッシュより奥に描く
+        return this.addEffectObject(new THREE.Mesh(this.flashGeometry, material), 9)
     }
 
     private getTargetCenter(target: THREE.Vector3) {
@@ -305,6 +291,7 @@ export default class Beam {
 
         // ターゲットが動いても追従する
         const end = this.getTargetCenter(this.targetCenter)
+        const radius = this.box.getBoundingSphere(this.sphere).radius
         const travel = this.params.travelDuration
 
         for (const shot of [...this.shots]) {
@@ -329,37 +316,35 @@ export default class Beam {
             shot.muzzleFlash.material.uniforms.uTime.value = t
             shot.muzzleFlash.visible = t < MUZZLE_DURATION
 
-            // Pop: 到達した瞬間にはじける
+            // Freeze: 到達した瞬間に凍りつく
             if (!shot.hit && t >= travel) {
                 shot.hit = true
                 shot.impactFlash.material.uniforms.uCenter.value.copy(end)
                 shot.impactFlash.visible = true
-
-                const sparkleUniforms = shot.sparkles.material.uniforms
-                sparkleUniforms.uCenter.value.copy(end)
-                sparkleUniforms.uRight.value.setFromMatrixColumn(this.camera.matrixWorld, 0).normalize()
-                sparkleUniforms.uUp.value.setFromMatrixColumn(this.camera.matrixWorld, 1).normalize()
-                shot.sparkles.visible = true
+                shot.freeze.visible = true
             }
 
             if (shot.hit) {
                 const popTime = t - travel
                 shot.impactFlash.material.uniforms.uTime.value = popTime
                 shot.impactFlash.visible = popTime < FLASH_DURATION
-                shot.sparkles.material.uniforms.uTime.value = popTime
 
-                if (popTime > this.params.sparkleDuration + SPARKLE_MAX_DELAY) this.removeShot(shot)
+                const freezeUniforms = shot.freeze.material.uniforms
+                freezeUniforms.uCenter.value.copy(end)
+                freezeUniforms.uRadius.value = radius * this.params.freezeRadius
+                freezeUniforms.uTime.value = popTime
+
+                if (popTime > freezeUniforms.uDuration.value) this.removeShot(shot)
             }
         }
     }
 
     private removeShot(shot: Shot) {
-        for (const object of [shot.beam, shot.muzzleFlash, shot.impactFlash, shot.sparkles]) {
+        // geometryは共有なのでmaterialだけ破棄
+        for (const object of [shot.beam, shot.muzzleFlash, shot.impactFlash, shot.freeze]) {
             object.removeFromParent()
             object.material.dispose()
         }
-        // beam / flash のgeometryは共有なのでsparklesだけ破棄
-        shot.sparkles.geometry.dispose()
 
         this.shots.splice(this.shots.indexOf(shot), 1)
     }
@@ -385,13 +370,14 @@ export default class Beam {
         })
 
         pane.addBinding(this.params, 'color')
-        pane.addBinding(this.params, 'sparkleColor')
+        pane.addBinding(this.params, 'iceColor')
+        pane.addBinding(this.params, 'iceOpacity', { min: 0, max: 3, step: 0.05 })
         pane.addBinding(this.params, 'width', { min: 0.02, max: 0.5, step: 0.01 })
         pane.addBinding(this.params, 'travelDuration', { min: 0.1, max: 2, step: 0.05 })
-        pane.addBinding(this.params, 'sparkleCount', { min: 4, max: 40, step: 1 })
-        pane.addBinding(this.params, 'sparkleDuration', { min: 0.1, max: 7, step: 0.05 })
-        pane.addBinding(this.params, 'sparkleSize', { min: 0.1, max: 2, step: 0.05 })
-        pane.addBinding(this.params, 'sparkleSpread', { min: 0.1, max: 5, step: 0.1 })
-        pane.addBinding(this.params, 'sparkleGravity', { min: -1, max: 5, step: 0.1 })
+        pane.addBinding(this.params, 'freezeDuration', { min: 0.3, max: 5, step: 0.05 })
+        pane.addBinding(this.params, 'freezeSpreadDuration', { min: 0.02, max: 1, step: 0.01 })
+        pane.addBinding(this.params, 'freezeRadius', { min: 0.5, max: 2, step: 0.05 })
+        pane.addBinding(this.params, 'crackCount', { min: 0, max: 20, step: 1 })
+        pane.addBinding(this.params, 'crackScale', { min: 1, max: 12, step: 0.5 })
     }
 }

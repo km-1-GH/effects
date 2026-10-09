@@ -20,7 +20,8 @@ import SpreadingCharas from './Effects/SpreadingCharas/SpreadingCharas.js'
 import particleVertexShader from './Effects/GPGPU/shaders/particles/vertex.glsl'
 import particleFragmentShader from './Effects/GPGPU/shaders/particles/fragment.glsl'
 import gpgpuParticleShader from './Effects/GPGPU/shaders/gpgpu/particles.glsl'
-import Beam from './Effects/Beam/Beam.ts'
+import BeamSparkle from './Effects/Beam_Sparkle/BeamSparkle.ts'
+import BeamFreeze from './Effects/Beam_Freeze/BeamFreeze.ts'
 
 /**
  * Sizes
@@ -139,15 +140,36 @@ scene.add(roundedSquare)
 /**
  * Beam: マウスクリック位置からround square meshへのビーム
  */
-items.beam = new Beam({
+const beamFolder = pane.addFolder({ title: 'Beam', expanded: false, index: 22 })
+const beamSwitchButton = beamFolder.addButton({ title: '' })
+const beamParam = {
     parent: scene,
     target: roundedSquare,
     camera,
     canvas,
     pixelRatio: sizes.pixelRatio,
     resolution: sizes.resolution,
-    gui: pane.addFolder({ title: 'Beam', expanded: false, index: 22 })
-})
+}
+const beamTypes = [
+    { name: 'Sparkle', folder: beamFolder.addFolder({ title: 'Sparkle' }) },
+    { name: 'Freeze', folder: beamFolder.addFolder({ title: 'Freeze' }) },
+]
+beamTypes[0].effect = new BeamSparkle({ ...beamParam, gui: beamTypes[0].folder })
+beamTypes[1].effect = new BeamFreeze({ ...beamParam, gui: beamTypes[1].folder })
+items.beams = beamTypes.map((type) => type.effect)
+
+// クリックで撃つのは選択中のビームだけ
+let beamIndex = 0
+const selectBeam = (index) => {
+    beamIndex = index
+    beamTypes.forEach((type, i) => {
+        type.effect.enabled = i === beamIndex
+        type.folder.hidden = i !== beamIndex
+    })
+    beamSwitchButton.title = `Type: ${beamTypes[beamIndex].name} (click to switch)`
+}
+beamSwitchButton.on('click', () => selectBeam((beamIndex + 1) % beamTypes.length))
+selectBeam(0)
 
 
 /**
@@ -422,7 +444,8 @@ const render = () =>
     // Update spreadingCharas
     items.spreadingCharas.update(delta)
     // Update beam
-    items.beam.update(delta)
+    // 切り替え前に撃った分も最後まで再生する
+    items.beams.forEach((beam) => beam.update(delta))
 
     
     // Rotate objects
