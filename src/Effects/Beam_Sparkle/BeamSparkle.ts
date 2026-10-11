@@ -26,8 +26,12 @@ export interface BeamParam {
     sparkleColor?: string
     /** Beam width */
     width?: number
+    /** Beam tail ratio */
+    tailRatio?: number
     /** Seconds to reach the target */
     travelDuration?: number
+    /** Beam absorb duration */
+    absorbDuration?: number
     /** Sparkle count */
     sparkleCount?: number
     /** Sparkle duration (seconds) */
@@ -43,7 +47,7 @@ export interface BeamParam {
 }
 
 type BeamParams = Required<Pick<BeamParam,
-    'color' | 'sparkleColor' | 'width' | 'travelDuration' |
+    'color' | 'sparkleColor' | 'width' | 'tailRatio' | 'travelDuration' | 'absorbDuration' |
     'sparkleCount' | 'sparkleDuration' | 'sparkleSize' |
     'sparkleSpread' | 'sparkleGravity'
 >>
@@ -64,7 +68,12 @@ interface Shot {
 }
 
 // beam
+const COLOR = '#ffd84d' // デフォルトのビーム色
+const SPARKLE_COLOR = '#7fe3ff' // デフォルトのスパークル色
+const BEAM_WIDTH = 0.3 // デフォルトのビーム幅
+
 const TAIL_RATIO = 0.45 // 経路に対するビームの長さ
+const TRAVEL_DURATION = 0.1 // ビームが到達するまでの時間
 const ABSORB_DURATION = 0.1 // 到達後にビームの尾が吸い込まれる時間
 // pop
 const MUZZLE_DURATION = 0.2
@@ -72,8 +81,12 @@ const MUZZLE_SIZE = 0.6
 const FLASH_DURATION = 0.3
 const FLASH_SIZE = 1.6
 // sparkles
+const SPARKLE_COUNT = 11
+const SPARKLE_DURATION = 0.85
+const SPARKLE_SIZE = 0.8
 const SPARKLE_MAX_DELAY = 0.06
 const SPARKLE_DEFAULT_SPREAD = 1.8
+const SPARKLE_GRAVITY = 0.06
 // クリックとドラッグ(OrbitControls)を区別する距離(px)
 const CLICK_TOLERANCE = 6
 
@@ -114,15 +127,17 @@ export default class BeamSparkle {
         this.resolution = param.resolution || new THREE.Vector2(1000, 750)
 
         this.params = {
-            color: param.color || '#ffd84d',
-            sparkleColor: param.sparkleColor || '#7fe3ff',
-            width: param.width ?? 0.3,
-            travelDuration: Math.max(param.travelDuration ?? 0.1, 0.01),
-            sparkleCount: param.sparkleCount ?? 11,
-            sparkleDuration: param.sparkleDuration ?? 0.85,
-            sparkleSize: param.sparkleSize ?? 0.8,
+            color: param.color || COLOR,
+            sparkleColor: param.sparkleColor || SPARKLE_COLOR,
+            width: param.width ?? BEAM_WIDTH,
+            tailRatio: param.tailRatio ?? TAIL_RATIO,
+            travelDuration: Math.max(param.travelDuration ?? TRAVEL_DURATION, 0.01),
+            absorbDuration: param.absorbDuration ?? ABSORB_DURATION,
+            sparkleCount: param.sparkleCount ?? SPARKLE_COUNT,
+            sparkleDuration: param.sparkleDuration ?? SPARKLE_DURATION,
+            sparkleSize: param.sparkleSize ?? SPARKLE_SIZE,
             sparkleSpread: param.sparkleSpread ?? SPARKLE_DEFAULT_SPREAD,
-            sparkleGravity: param.sparkleGravity ?? 1,
+            sparkleGravity: param.sparkleGravity ?? SPARKLE_GRAVITY,
         }
 
         this.beamGeometry = this.createBeamGeometry()
@@ -330,10 +345,10 @@ export default class BeamSparkle {
             // Beam: 加速しながら飛んで、到達後は尾が吸い込まれる
             const progress = Math.min(t / travel, 1)
             const head = 1 - Math.cos(progress * Math.PI * 0.5) // easeInSine
-            const absorb = THREE.MathUtils.clamp((t - travel) / ABSORB_DURATION, 0, 1)
+            const absorb = THREE.MathUtils.clamp((t - travel) / this.params.absorbDuration, 0, 1)
             const tail = progress < 1
-                ? Math.max(0, head - TAIL_RATIO)
-                : THREE.MathUtils.lerp(1 - TAIL_RATIO, 1, absorb)
+                ? Math.max(0, head - this.params.tailRatio)
+                : THREE.MathUtils.lerp(1 - this.params.tailRatio, 1, absorb)
 
             const beamUniforms = shot.beam.material.uniforms
             beamUniforms.uHead.value.lerpVectors(start, end, head)
