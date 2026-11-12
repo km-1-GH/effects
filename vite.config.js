@@ -1,4 +1,4 @@
-import glsl from 'vite-plugin-glsl'
+import glsl from './vite-plugins/glsl-include.js';
 
 export default {
     root: 'src/',
